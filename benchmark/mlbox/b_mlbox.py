@@ -1,15 +1,14 @@
-from mlbox.preprocessing import Reader, Drift_thresholder
-from mlbox.optimisation import Optimiser
-from mlbox.prediction import Predictor
-from mlbox.model.classification import Classifier
-
-from benchmark.benchmark_model_types import ModelTypesEnum
-from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
-from sklearn.metrics import roc_auc_score
-import pandas as pd
 import os
 
+import pandas as pd
+from mlbox.optimisation import Optimiser
+from mlbox.prediction import Predictor
+from mlbox.preprocessing import Reader, Drift_thresholder
+from sklearn.metrics import roc_auc_score
+
+from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
 from core.repository.task_types import MachineLearningTasksEnum
+import log
 
 
 def separate_target_column(file_path: str, target_name: str):
@@ -29,6 +28,8 @@ def separate_target_column(file_path: str, target_name: str):
 
 def run_mlbox(train_file_path: str, test_file_path: str, target_name: str, config_data: dict,
               task: MachineLearningTasksEnum):
+    logger = log.get_logger(__name__)
+    logger.info('Starting mlbox...')
     new_test_file_path, test_target = separate_target_column(test_file_path, target_name)
     paths = [train_file_path, new_test_file_path]
 

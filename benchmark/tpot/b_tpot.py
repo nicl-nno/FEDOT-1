@@ -1,15 +1,13 @@
 import os
 
 import joblib
+from sklearn.metrics import mean_squared_error as mse
 from sklearn.metrics import roc_auc_score
 from tpot import TPOTClassifier
 from tpot import TPOTRegressor
 
-from benchmark.benchmark_model_types import ModelTypesEnum
 from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
 from core.models.data import InputData
-from sklearn.metrics import mean_squared_error as mse
-
 from core.repository.task_types import MachineLearningTasksEnum
 
 
@@ -27,7 +25,7 @@ def run_tpot(train_file_path: str, test_file_path: str, config_data: dict, task:
     current_file_path = str(os.path.dirname(__file__))
     result_file_path = os.path.join(current_file_path, result_model_filename)
 
-    if result_model_filename not in os.listdir(current_file_path):
+    if os.path.exists(result_file_path):
         estimator = TPOTClassifier if task is MachineLearningTasksEnum.classification else TPOTRegressor
 
         model = estimator(generations=generations,

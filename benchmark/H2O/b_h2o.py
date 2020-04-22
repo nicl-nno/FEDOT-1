@@ -8,7 +8,6 @@ import os
 import h2o
 from h2o.automl import H2OAutoML
 
-from benchmark.benchmark_model_types import ModelTypesEnum
 from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
 from core.repository.task_types import MachineLearningTasksEnum
 
@@ -38,7 +37,7 @@ def run_h2o(train_file_path: str, test_file_path: str, config_data: dict, target
     exported_model_path = os.path.join(CURRENT_PATH, result_filename)
 
     # TODO Regression
-    if result_filename not in os.listdir(CURRENT_PATH):
+    if os.path.exists(exported_model_path):
         model = H2OAutoML(max_models=max_models, seed=1, max_runtime_secs=max_runtime_secs)
         model.train(x=predictors, y=target_name, training_frame=train_frame, validation_frame=test_frame)
         best_model = model.leader

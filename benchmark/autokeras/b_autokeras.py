@@ -1,11 +1,9 @@
 import autokeras as ak
 from sklearn.metrics import mean_squared_error as mse
-
-from benchmark.benchmark_model_types import ModelTypesEnum
-from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
-from core.models.data import InputData
 from sklearn.metrics import roc_auc_score
 
+from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
+from core.models.data import InputData
 from core.repository.task_types import MachineLearningTasksEnum
 
 
