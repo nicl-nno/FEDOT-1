@@ -4,11 +4,10 @@ import random
 
 from sklearn.metrics import roc_auc_score as roc_auc
 
-import log
+from core import log
 from core.composer.chain import Chain
 from core.composer.composer import ComposerRequirements, DummyChainTypeEnum, DummyComposer
 from core.composer.gp_composer.gp_composer import GPComposer, GPComposerRequirements
-from core.composer.visualisation import ComposerVisualiser
 from core.debug.metrics import RandomMetric
 from core.models.model import *
 from core.repository.dataset_types import NumericalDataTypesEnum, CategoricalDataTypesEnum
@@ -19,7 +18,6 @@ from core.repository.model_types_repository import (
 from core.repository.quality_metrics_repository import MetricsRepository, ClassificationMetricsEnum
 from core.repository.task_types import MachineLearningTasksEnum
 from core.utils import project_root
-import logging
 
 random.seed(1)
 np.random.seed(1)
@@ -93,8 +91,8 @@ def run_credit_scoring_problem(train_file_path, test_file_path):
     chain_single.fit(input_data=dataset_to_compose, verbose=True)
     logger.info("Composition finished")
 
-    # ComposerVisualiser.visualise(chain_static)
-    # ComposerVisualiser.visualise(chain_evo_composed)
+    ComposerVisualiser.visualise(chain_static)
+    ComposerVisualiser.visualise(chain_evo_composed)
 
     # the quality assessment for the obtained composite models
     roc_on_valid_static = round(calculate_validation_metric(chain_static, dataset_to_validate), 3)

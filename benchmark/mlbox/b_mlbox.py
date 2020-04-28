@@ -8,7 +8,7 @@ from sklearn.metrics import roc_auc_score
 
 from benchmark.benchmark_utils import get_scoring_case_data_paths, get_models_hyperparameters
 from core.repository.task_types import MachineLearningTasksEnum
-import log
+from core import log
 
 
 def separate_target_column(file_path: str, target_name: str):

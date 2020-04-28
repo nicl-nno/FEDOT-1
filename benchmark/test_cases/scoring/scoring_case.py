@@ -1,4 +1,4 @@
-import log
+from core import log
 from benchmark.benchmark_model_types import ModelTypesEnum
 from benchmark.benchmark_utils import get_scoring_case_data_paths, save_metrics_result_file, get_models_hyperparameters
 from benchmark.executor import CaseExecutor
