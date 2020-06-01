@@ -16,7 +16,7 @@ import numpy as np
 
 from core.composer.optimisers.crossover import CrossoverTypesEnum
 from core.composer.optimisers.crossover import crossover
-from core.composer.optimisers.gp_operators import random_chain
+from core.composer.optimisers.gp_operators import random_ml_chain, random_cnn_chain
 from core.composer.optimisers.mutation import MutationTypesEnum
 from core.composer.optimisers.mutation import mutation
 from core.composer.optimisers.regularization import RegularizationTypesEnum
@@ -25,6 +25,9 @@ from core.composer.optimisers.selection import SelectionTypesEnum
 from core.composer.optimisers.selection import selection, individuals_selection
 from core.composer.timer import CompositionTimer
 
+class GPTaskTypesEnum(Enum):
+    models_chain_composing = 'models_chain_composing'
+    nn_composing = 'nn_composing'
 
 class GeneticSchemeTypesEnum(Enum):
     steady_state = 'steady_state'
@@ -38,6 +41,7 @@ class GPChainOptimiserParameters:
     mutation_types: List[MutationTypesEnum] = None
     regularization_type: RegularizationTypesEnum = RegularizationTypesEnum.decremental
     genetic_scheme_type: GeneticSchemeTypesEnum = GeneticSchemeTypesEnum.steady_state
+    task: GPTaskTypesEnum = GPTaskTypesEnum.models_chain_composing
 
     def __post_init__(self):
         if not self.selection_types:
@@ -58,7 +62,9 @@ class GPChainOptimiser:
         self.best_fitness = None
         self.chain_class = chain_class
         self.parameters = GPChainOptimiserParameters() if parameters is None else parameters
-        self.chain_generation_function = partial(random_chain, chain_class=chain_class, requirements=self.requirements,
+        ml_chain_composing = self.parameters.task == GPTaskTypesEnum.models_chain_composing
+        random_chain_function = random_ml_chain if ml_chain_composing else random_cnn_chain
+        self.chain_generation_function = partial(random_chain_function, chain_class=chain_class, requirements=self.requirements,
                                                  primary_node_func=self.primary_node_func,
                                                  secondary_node_func=self.secondary_node_func)
 
@@ -121,7 +127,7 @@ class GPChainOptimiser:
                                                                           self.population + new_population,
                                                                           self.requirements.pop_size - 1)
                 else:
-                    self.population = new_population
+                    self.population = deepcopy(new_population)
 
                 self.population.append(self.best_individual)
 

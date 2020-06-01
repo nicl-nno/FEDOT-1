@@ -12,14 +12,14 @@ from typing import (
 from core.composer.chain import Chain
 from core.composer.node import NodeGenerator
 from core.models.data import InputData
-from core.repository.model_types_repository import ModelTypesIdsEnum
 
 
 @dataclass
 class ComposerRequirements:
-    primary: List[ModelTypesIdsEnum]
-    secondary: List[ModelTypesIdsEnum]
+    primary: List[Enum]
+    secondary: List[Enum]
     max_lead_time: Optional[datetime.timedelta] = datetime.timedelta(minutes=30)
+    min_depth: int = 2
     max_depth: int = 3
     max_arity: int = 2
     min_arity: int = 2
@@ -31,7 +31,6 @@ class ComposerRequirements:
             raise ValueError(f'invalid max_arity value')
         if self.min_arity < 0:
             raise ValueError(f'invalid min_arity value')
-
 
 
 class Composer(ABC):

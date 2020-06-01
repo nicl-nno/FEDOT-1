@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Tuple
-
+from sklearn.model_selection import train_test_split
 import numpy as np
 import pandas as pd
 
@@ -23,6 +23,21 @@ class Data:
         features = data_array[1:-1].T
         target = data_array[-1].astype(np.float)
         return InputData(idx=idx, features=features, target=target, task_type=task_type)
+
+    @staticmethod
+    def from_json(file_path, task_type: TaskTypesEnum = MachineLearningTasksEnum.classification, train_size=0.75):
+        data_frame = pd.read_json(file_path)
+        target = data_frame['is_iceberg']
+        X_band_1 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in data_frame["band_1"]])
+        X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in data_frame["band_2"]])
+        X = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],
+                            ((X_band_1 + X_band_2) / 2)[:, :, :, np.newaxis]], axis=-1)
+        X_train, X_test, y_train, y_test = train_test_split(X, target, random_state=1, train_size=train_size)
+        train_input_data = InputData(idx=np.arange(0, len(X_train)), features=X_train, target=np.array(y_train),
+                                     task_type=task_type)
+        test_input_data = InputData(idx=np.arange(0, len(X_test)), features=X_test, target=np.array(y_test),
+                                    task_type=task_type)
+        return train_input_data, test_input_data
 
     @staticmethod
     def from_predictions(outputs: List['OutputData'], target: np.array):

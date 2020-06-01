@@ -40,7 +40,7 @@ class RocAucMetric(ChainMetric):
     @from_maximised_metric
     def get_value(chain: Chain, reference_data: InputData) -> float:
         try:
-            validate(chain)
+            #validate(chain)
             results = chain.predict(reference_data)
             score = round(roc_auc_score(y_score=results.predict,
                                         y_true=reference_data.target), 3)

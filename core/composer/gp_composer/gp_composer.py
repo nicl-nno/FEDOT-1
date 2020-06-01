@@ -4,7 +4,6 @@ from typing import (
     Callable,
     Optional,
 )
-
 from core.chain_validation import validate
 from core.composer.chain import Chain, SharedChain
 from core.composer.composer import Composer, ComposerRequirements
@@ -26,7 +25,7 @@ class GPComposerRequirements(ComposerRequirements):
 
 class GPComposer(Composer):
     def __init__(self):
-        super(Composer, self).__init__()
+        super().__init__()
         self.shared_cache = {}
 
     def compose_chain(self, data: InputData, initial_chain: Optional[Chain],
@@ -68,6 +67,3 @@ class GPComposer(Composer):
             chain = SharedChain(base_chain=chain, shared_cache=self.shared_cache)
         chain.fit(input_data=train_data)
         return metric_function(chain, test_data)
-
-
-

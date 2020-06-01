@@ -4,7 +4,7 @@ from random import random, choice, randint
 from typing import (Any, Callable)
 
 from core.composer.chain import Chain, List
-from core.composer.optimisers.gp_operators import nodes_from_height, node_depth, random_chain
+from core.composer.optimisers.gp_operators import nodes_from_height, node_depth, random_ml_chain
 
 
 class MutationTypesEnum(Enum):
@@ -94,7 +94,7 @@ def growth_mutation(chain: Any, chain_class, secondary_node_func: Callable, prim
         new_subtree = primary_node_func(model_type=choice(requirements.primary))
     else:
         max_depth = node_depth(node_from_chain)
-        new_subtree = random_chain(chain_class, secondary_node_func, primary_node_func, requirements,
+        new_subtree = random_ml_chain(chain_class, secondary_node_func, primary_node_func, requirements,
                                    max_depth=max_depth).root_node
     chain_copy.replace_node_with_parents(node_from_chain, new_subtree)
     return chain_copy
