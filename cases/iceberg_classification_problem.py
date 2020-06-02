@@ -13,8 +13,8 @@ from core.composer.optimisers.mutation import MutationTypesEnum
 from core.composer.optimisers.regularization import RegularizationTypesEnum
 from core.composer.optimisers.selection import SelectionTypesEnum
 from core.composer.visualisation import ComposerVisualiser
-from core.models.model import *
 from core.layers.layer import LayerTypesIdsEnum
+from core.models.model import *
 from core.repository.quality_metrics_repository import MetricsRepository, ClassificationMetricsEnum
 from core.utils import project_root
 
@@ -29,6 +29,7 @@ def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) ->
     roc_auc_value = roc_auc(y_true=dataset_to_validate.target,
                             y_score=predicted.predict)
     return roc_auc_value
+
 
 def run_iceberg_classification_problem(file_path,
                                        max_lead_time: datetime.timedelta = datetime.timedelta(minutes=20),
@@ -47,16 +48,14 @@ def run_iceberg_classification_problem(file_path,
         optimiser_parameters = gp_optimiser_params
     else:
         optimiser_parameters = GPChainOptimiserParameters(selection_types=[SelectionTypesEnum.tournament],
-                                                          crossover_types=[CrossoverTypesEnum.subtree],
-                                                          mutation_types=[MutationTypesEnum.simple,
-                                                                          MutationTypesEnum.growth,
-                                                                          MutationTypesEnum.reduce],
-                                                          regularization_type=RegularizationTypesEnum.decremental,
-                                                          task=GPTaskTypesEnum.nn_composing)
+                                                          crossover_types=[CrossoverTypesEnum.cnn_subtree],
+                                                          mutation_types=[MutationTypesEnum.none],
+                                                          regularization_type=RegularizationTypesEnum.none,
+                                                          task=GPTaskTypesEnum.cnn_composing)
     composer_requirements = GPNNComposerRequirements(
         cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
-        max_depth=4, pop_size=3, num_of_generations=2,
+        max_depth=4, pop_size=10, num_of_generations=10,
         crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75])
 
     # Create GP-based composer
@@ -68,7 +67,8 @@ def run_iceberg_classification_problem(file_path,
                                                 composer_requirements=composer_requirements,
                                                 metrics=metric_function, optimiser_parameters=optimiser_parameters,
                                                 is_visualise=False)
-    chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True)
+    chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True, input_shape=(75, 75, 3), min_filters=64,
+                           max_filters=128, epochs=25)
 
     ComposerVisualiser.visualise(chain_evo_composed)
 

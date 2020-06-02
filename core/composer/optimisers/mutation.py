@@ -11,6 +11,8 @@ class MutationTypesEnum(Enum):
     simple = 'simple'
     growth = 'growth'
     reduce = 'reduce'
+    none = 'none'
+    cnn_simple = 'cnn_simple'
 
 
 class MutationPowerEnum(Enum):
@@ -35,28 +37,26 @@ def get_mutation_prob(mut_id, root_node):
 
 
 def mutation(types: List[MutationTypesEnum], chain_class, chain: Chain, requirements,
-             secondary_node_func: Callable = None, primary_node_func: Callable = None, mutation_prob: bool = 0.8,
+             secondary_node_func: Callable = None, primary_node_func: Callable = None,
              node_mutate_type=MutationPowerEnum.mean) -> Any:
+    mutation_prob = requirements.mutation_prob
     if mutation_prob and random() > mutation_prob:
         return deepcopy(chain)
-
-    mutation_by_type = {
-        MutationTypesEnum.simple: simple_mutation(chain=chain, secondary=requirements.secondary,
-                                                  primary=requirements.primary,
-                                                  secondary_node_func=secondary_node_func,
-                                                  primary_node_func=primary_node_func,
-                                                  node_mutate_type=node_mutate_type),
-        MutationTypesEnum.growth: growth_mutation(chain=chain, chain_class=chain_class,
-                                                  secondary_node_func=secondary_node_func,
-                                                  primary_node_func=primary_node_func, requirements=requirements),
-        MutationTypesEnum.reduce: reduce_mutation(chain=chain, primary_node_func=primary_node_func,
-                                                  requirements=requirements)
-    }
     type = choice(types)
-    if type in mutation_by_type:
-        return mutation_by_type[type]
+    if type == MutationTypesEnum.none:
+        new_chain = deepcopy(chain)
+    elif type == MutationTypesEnum.simple:
+        new_chain = simple_mutation(chain=chain, secondary=requirements.secondary, primary=requirements.primary,
+                                    secondary_node_func=secondary_node_func, primary_node_func=primary_node_func,
+                                    node_mutate_type=node_mutate_type)
+    elif type == MutationTypesEnum.growth:
+        new_chain = growth_mutation(chain=chain, chain_class=chain_class, secondary_node_func=secondary_node_func,
+                                    primary_node_func=primary_node_func, requirements=requirements)
+    elif type == MutationTypesEnum.reduce:
+        new_chain = reduce_mutation(chain=chain, primary_node_func=primary_node_func, requirements=requirements)
     else:
         raise ValueError(f'Required mutation not found: {type}')
+    return new_chain
 
 
 def simple_mutation(chain: Any, secondary: Any, primary: Any,
@@ -87,7 +87,7 @@ def growth_mutation(chain: Any, chain_class, secondary_node_func: Callable, prim
                     requirements) -> Any:
     chain_copy = deepcopy(chain)
     random_layer_in_chain = randint(0, chain_copy.depth - 1)
-    node_from_chain = choice(nodes_from_height(chain_copy, random_layer_in_chain))
+    node_from_chain = choice(nodes_from_height(chain_copy.root_node, random_layer_in_chain))
     is_primary_node_selected = (not node_from_chain.nodes_from) or (
             node_from_chain.nodes_from and node_from_chain != chain_copy.root_node and randint(0, 1))
     if is_primary_node_selected:
@@ -95,7 +95,7 @@ def growth_mutation(chain: Any, chain_class, secondary_node_func: Callable, prim
     else:
         max_depth = node_depth(node_from_chain)
         new_subtree = random_ml_chain(chain_class, secondary_node_func, primary_node_func, requirements,
-                                   max_depth=max_depth).root_node
+                                      max_depth=max_depth).root_node
     chain_copy.replace_node_with_parents(node_from_chain, new_subtree)
     return chain_copy
 
@@ -112,4 +112,3 @@ def reduce_mutation(chain: Any, primary_node_func: Callable, requirements) -> An
         primary_node = primary_node_func(model_type=choice(requirements.primary))
         chain_copy.replace_node_with_parents(node_to_del, primary_node)
     return chain_copy
-

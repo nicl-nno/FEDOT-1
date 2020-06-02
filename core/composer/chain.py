@@ -117,7 +117,7 @@ class Chain:
         def _depth_recursive(node):
             if node is None:
                 return 0
-            if isinstance(node, PrimaryNode):
+            if not node.nodes_from:
                 return 1
             else:
                 return 1 + max([_depth_recursive(next_node) for next_node in node.nodes_from])
@@ -144,6 +144,9 @@ class NNChain(Chain):
     def __init__(self, nodes=None, fitted_model=None):
         super().__init__(nodes)
         self.model = fitted_model
+
+    def __eq__(self, other) -> bool:
+        return self is other
 
     def fit(self, input_data: InputData, verbose=False, input_shape: tuple = None,
             min_filters: int = None, max_filters: int = None, classes: int = 2, batch_size=24, epochs=15):

@@ -23,7 +23,7 @@ def node_depth(node: Any) -> int:
         return 1 + max([node_depth(next_node) for next_node in node.nodes_from])
 
 
-def nodes_from_height(chain: Any, selected_height: int) -> List[Any]:
+def nodes_from_height(root: Any, selected_height: int, root_height: int = 0) -> List[Any]:
     def get_nodes(node: Any, current_height):
         nodes = []
         if current_height == selected_height:
@@ -34,7 +34,7 @@ def nodes_from_height(chain: Any, selected_height: int) -> List[Any]:
                     nodes += get_nodes(child, current_height + 1)
         return nodes
 
-    nodes = get_nodes(chain.root_node, current_height=0)
+    nodes = get_nodes(root, current_height=root_height)
     return nodes
 
 
@@ -86,10 +86,8 @@ def one_side_parameters_correction(input_dimension: float, kernel_size: int, str
 def permissible_kernel_parameters_correct(image_size: List[float], kernel_size: Tuple[int, int],
                                           strides: Tuple[int, int],
                                           pooling: bool) -> Tuple[Tuple[int, int], Tuple[int, int]]:
-    is_strides_permissible = all(
-        [strides[i] < kernel_size[i] for i in range(len(strides))])
-    is_kernel_size_permissible = all(
-        [kernel_size[i] < image_size[i] for i in range(len(strides))])
+    is_strides_permissible = all([strides[i] < kernel_size[i] for i in range(len(strides))])
+    is_kernel_size_permissible = all([kernel_size[i] < image_size[i] for i in range(len(strides))])
     if not is_strides_permissible:
         if pooling:
             strides = (2, 2)
@@ -128,7 +126,7 @@ class StaticStorage:
     current_image_size = None
 
 
-def is_image_has_permissible_size(image_size, min_size: int):
+def is_image_has_permissible_size(image_size, min_size: int, ):
     return all([side_size > min_size for side_size in image_size])
 
 
@@ -212,6 +210,39 @@ def random_cnn_chain(chain_class: Any, secondary_node_func: Callable, primary_no
     # Right branch of tree generation (fully connected nn)
     branch_growth(chain, chain_root, False, 1, height)
     return chain
+
+
+def check_cnn_branch(root_node: Any, image_size: List[int]):
+    def node_check(node: Any):
+        result = []
+        is_node_correct = True
+        type = node.layer_params.layer_type
+        if type == LayerTypesIdsEnum.conv2d or type == LayerTypesIdsEnum.maxpool2d:
+            if type == LayerTypesIdsEnum.conv2d:
+                kernel_size = node.layer_params.kernel_size
+            else:
+                kernel_size = node.layer_params.pool_size
+            strides = node.layer_params.strides
+            StaticStorage.current_image_size = [
+                output_dimension(StaticStorage.current_image_size[i], kernel_size[i], strides[i]) for i in
+                range(len(StaticStorage.current_image_size))]
+            if is_image_has_permissible_size(StaticStorage.current_image_size, 2):
+                if type == LayerTypesIdsEnum.conv2d:
+                    if not all([float(side_size).is_integer() for side_size in StaticStorage.current_image_size]):
+                        is_node_correct = False
+            else:
+                is_node_correct = False
+
+        result.append(is_node_correct)
+        if is_node_correct:
+            if node.nodes_from:
+                for node_from in node.nodes_from:
+                    result += node_check(node_from)
+        return result
+
+    StaticStorage.current_image_size = image_size
+    return all(node_check(root_node))
+
 
 def equivalent_subtree(chain_first: Any, chain_second: Any) -> List[Tuple[Any, Any]]:
     """returns the nodes set of the structurally equivalent subtree as: list of pairs [node_from_tree1, node_from_tree2]
