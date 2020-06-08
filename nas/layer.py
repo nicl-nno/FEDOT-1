@@ -1,6 +1,7 @@
-from enum import Enum
 from dataclasses import dataclass
+from enum import Enum
 from typing import Tuple
+
 
 class ActivationTypesIdsEnum(Enum):
     softmax = 'softmax'
@@ -32,5 +33,5 @@ class LayerParams:
     drop: float = None
     pool_size: Tuple[int, int] = None
     kernel_size: Tuple[int, int] = None
-    strides: Tuple[int, int] = None
-
+    conv_strides: Tuple[int, int] = None
+    pool_strides: Tuple[int, int] = None

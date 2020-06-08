@@ -1,5 +1,7 @@
 from typing import (List, Optional)
-from core.layers.layer import LayerParams
+
+from nas.layer import LayerParams, LayerTypesIdsEnum
+
 
 class NNNode():
     def __init__(self, nodes_from: Optional[List['NNNode']], layer_params: LayerParams):
@@ -7,6 +9,9 @@ class NNNode():
         self.layer_params = layer_params
 
     def __str__(self):
+        if self.layer_params.layer_type == LayerTypesIdsEnum.conv2d:
+            if self.layer_params.pool_size:
+                return f'{self.layer_params.layer_type.value} with maxpool2d'
         return self.layer_params.layer_type.value
 
     @property

@@ -1,9 +1,11 @@
+from typing import Any
+
 from keras import layers
 from keras import models
 from keras import optimizers
-from typing import Any
+
 from core.models.data import InputData, OutputData
-from core.layers.layer import LayerTypesIdsEnum
+from nas.layer import LayerTypesIdsEnum
 
 
 def keras_model_fit(model, input_data: InputData, verbose: bool = False, batch_size: int = 24,
@@ -48,22 +50,24 @@ def create_nn_model(chain: Any, input_shape: tuple, min_filters: int, max_filter
         if type == LayerTypesIdsEnum.conv2d:
             activation = layer.layer_params.activation.value
             kernel_size = layer.layer_params.kernel_size
-            strides = layer.layer_params.strides
+            conv_strides = layer.layer_params.conv_strides
             if i == 0:
                 model.add(
                     layers.Conv2D(filters_num, kernel_size=kernel_size, activation=activation, input_shape=input_shape,
-                                  strides=strides))
+                                  strides=conv_strides))
             else:
-                model.add(layers.Conv2D(filters_num, kernel_size=kernel_size, activation=activation, strides=strides))
+                model.add(
+                    layers.Conv2D(filters_num, kernel_size=kernel_size, activation=activation, strides=conv_strides))
 
             if filters_num < max_filters:
                 filters_num = filters_num * 2
+
+            if layer.layer_params.pool_size:
+                pool_size = layer.layer_params.pool_size
+                pool_strides = layer.layer_params.pool_strides
+                model.add(layers.MaxPooling2D(pool_size=pool_size, strides=pool_strides))
         elif type == LayerTypesIdsEnum.flatten:
             model.add(layers.Flatten())
-        elif type == LayerTypesIdsEnum.maxpool2d:
-            pool_size = layer.layer_params.pool_size
-            strides = layer.layer_params.strides
-            model.add(layers.MaxPooling2D(pool_size=pool_size, strides=strides))
         elif type == LayerTypesIdsEnum.dropout:
             drop = layer.layer_params.drop
             model.add(layers.Dropout(drop))

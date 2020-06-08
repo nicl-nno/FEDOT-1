@@ -4,11 +4,16 @@ from typing import (
     Callable,
     Optional,
 )
+
 from core.chain_validation import validate
 from core.composer.chain import Chain, SharedChain
 from core.composer.composer import Composer, ComposerRequirements
 from core.composer.node import NodeGenerator
+from core.composer.optimisers.crossover import CrossoverTypesEnum, crossover_by_type
+from core.composer.optimisers.gp_operators import random_ml_chain
 from core.composer.optimisers.gp_optimiser import GPChainOptimiser, GPChainOptimiserParameters
+from core.composer.optimisers.mutation import MutationTypesEnum, MutationStrengthEnum, mutation_by_type
+from core.composer.optimisers.selection import SelectionTypesEnum
 from core.composer.visualisation import ComposerVisualiser
 from core.composer.write_history import write_composer_history_to_csv
 from core.models.data import InputData
@@ -21,6 +26,7 @@ class GPComposerRequirements(ComposerRequirements):
     num_of_generations: Optional[int] = 50
     crossover_prob: Optional[float] = None
     mutation_prob: Optional[float] = None
+    mutation_strength: MutationStrengthEnum = MutationStrengthEnum.mean
 
 
 class GPComposer(Composer):
@@ -36,6 +42,19 @@ class GPComposer(Composer):
         train_data, test_data = train_test_data_setup(data, 0.8)
         self.shared_cache.clear()
 
+        if not optimiser_parameters:
+            self.optimiser_parameters = GPChainOptimiserParameters(chain_generation_function=random_ml_chain,
+                                                                   crossover_types=[CrossoverTypesEnum.subtree,
+                                                                                    CrossoverTypesEnum.onepoint],
+                                                                   crossover_types_dict=crossover_by_type,
+                                                                   mutation_types=[MutationTypesEnum.simple,
+                                                                                   MutationTypesEnum.growth,
+                                                                                   MutationTypesEnum.reduce],
+                                                                   mutation_types_dict=mutation_by_type,
+                                                                   selection_types=[SelectionTypesEnum.tournament])
+        else:
+            self.optimiser_parameters = optimiser_parameters
+
         metric_function_for_nodes = partial(self.metric_for_nodes,
                                             metrics, train_data, test_data, True)
 
@@ -43,7 +62,7 @@ class GPComposer(Composer):
                                      requirements=composer_requirements,
                                      primary_node_func=NodeGenerator.primary_node,
                                      secondary_node_func=NodeGenerator.secondary_node, chain_class=Chain,
-                                     parameters=optimiser_parameters)
+                                     parameters=self.optimiser_parameters)
 
         best_chain, self.history = optimiser.optimise(metric_function_for_nodes)
         historical_fitness = [chain.fitness for chain in self.history]

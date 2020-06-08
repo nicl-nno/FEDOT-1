@@ -1,6 +1,5 @@
 import math
 from dataclasses import dataclass
-from enum import Enum
 from functools import partial
 from typing import (
     List,
@@ -12,7 +11,6 @@ from typing import (
 import numpy as np
 
 from core.composer.optimisers.crossover import CrossoverTypesEnum, crossover
-from core.composer.optimisers.gp_operators import random_ml_chain, random_cnn_chain
 from core.composer.optimisers.heredity import heredity, GeneticSchemeTypesEnum
 from core.composer.optimisers.mutation import MutationTypesEnum, mutation
 from core.composer.optimisers.regularization import RegularizationTypesEnum, regularized_population
@@ -20,32 +18,16 @@ from core.composer.optimisers.selection import SelectionTypesEnum, selection
 from core.composer.timer import CompositionTimer
 
 
-class GPTaskTypesEnum(Enum):
-    models_chain_composing = 'models_chain_composing'
-    cnn_composing = 'cnn_composing'
-
 @dataclass
 class GPChainOptimiserParameters:
-    selection_types: List[SelectionTypesEnum] = None
-    crossover_types: List[CrossoverTypesEnum] = None
-    mutation_types: List[MutationTypesEnum] = None
+    chain_generation_function: Callable
+    selection_types: List[SelectionTypesEnum]
+    crossover_types: List[CrossoverTypesEnum]
+    mutation_types: List[MutationTypesEnum]
+    crossover_types_dict: dict
+    mutation_types_dict: dict
     regularization_type: RegularizationTypesEnum = RegularizationTypesEnum.none
     genetic_scheme_type: GeneticSchemeTypesEnum = GeneticSchemeTypesEnum.steady_state
-    task: GPTaskTypesEnum = GPTaskTypesEnum.models_chain_composing
-
-    def __post_init__(self):
-        if not self.selection_types:
-            self.selection_types = [SelectionTypesEnum.tournament]
-        if not self.crossover_types:
-            if self.task == GPTaskTypesEnum.models_chain_composing:
-                self.crossover_types = [CrossoverTypesEnum.subtree]
-            elif self.task == GPTaskTypesEnum.cnn_composing:
-                self.crossover_types = [CrossoverTypesEnum.cnn_subtree]
-        if not self.mutation_types:
-            if self.task == GPTaskTypesEnum.models_chain_composing:
-                self.mutation_types = [MutationTypesEnum.simple]
-            else:
-                self.mutation_types = [MutationTypesEnum.none]
 
 
 class GPChainOptimiser:
@@ -56,11 +38,9 @@ class GPChainOptimiser:
         self.secondary_node_func = secondary_node_func
         self.history = []
         self.chain_class = chain_class
-        self.parameters = GPChainOptimiserParameters() if parameters is None else parameters
+        self.parameters = parameters
 
-        ml_chain_composing = self.parameters.task == GPTaskTypesEnum.models_chain_composing
-        random_chain_function = random_ml_chain if ml_chain_composing else random_cnn_chain
-        self.chain_generation_function = partial(random_chain_function, chain_class=chain_class,
+        self.chain_generation_function = partial(self.parameters.chain_generation_function, chain_class=chain_class,
                                                  requirements=self.requirements,
                                                  primary_node_func=self.primary_node_func,
                                                  secondary_node_func=self.secondary_node_func)
@@ -109,6 +89,7 @@ class GPChainOptimiser:
                         self.reproduce(selected_individuals[parent_num], selected_individuals[parent_num + 1]))
 
                     new_population[ind_num].fitness = objective_function(new_population[ind_num])
+
                 self.population = heredity(self.parameters.genetic_scheme_type, self.parameters.selection_types,
                                            self.population,
                                            new_population, self.requirements.pop_size - 1)
@@ -124,6 +105,7 @@ class GPChainOptimiser:
                     break
 
         return self.best_individual, self.history
+
 
     @property
     def best_individual(self) -> Any:
@@ -149,14 +131,14 @@ class GPChainOptimiser:
         new_ind = crossover(self.parameters.crossover_types,
                             selected_individual_first,
                             selected_individual_second,
-                            self.requirements)
+                            self.requirements, self.parameters.crossover_types_dict)
 
         new_ind = mutation(types=self.parameters.mutation_types,
                            chain_class=self.chain_class,
                            chain=new_ind,
                            requirements=self.requirements,
                            secondary_node_func=self.secondary_node_func,
-                           primary_node_func=self.primary_node_func)
+                           primary_node_func=self.primary_node_func, types_dict=self.parameters.mutation_types_dict)
         return new_ind
 
     def _make_population(self, pop_size: int) -> List[Any]:

@@ -7,17 +7,22 @@ from typing import (
     List
 )
 
-from core.layers.layer import LayerTypesIdsEnum
-from core.composer.chain import NNChain
 from core.composer.composer import Composer
 from core.composer.gp_composer.gp_composer import GPComposerRequirements
-from core.composer.nn_node import NNNodeGenerator
 from core.composer.optimisers.gp_optimiser import GPChainOptimiser, GPChainOptimiserParameters
-from core.composer.optimisers.gp_operators import permissible_kernel_parameters_correct
+from core.composer.optimisers.selection import SelectionTypesEnum
 from core.composer.visualisation import ComposerVisualiser
 from core.composer.write_history import write_composer_history_to_csv
 from core.models.data import InputData
 from core.models.data import train_test_data_setup
+from nas.cnn_crossover import CrossoverTypesEnum
+from nas.cnn_crossover import crossover_by_type
+from nas.cnn_gp_operators import permissible_kernel_parameters_correct, random_cnn_chain
+from nas.cnn_mutation import MutationTypesEnum
+from nas.cnn_mutation import mutation_by_type
+from nas.layer import LayerTypesIdsEnum, activation_types
+from nas.nas_chain import NASChain
+from nas.nn_node import NNNodeGenerator
 
 
 @dataclass
@@ -35,14 +40,14 @@ class GPNNComposerRequirements(GPComposerRequirements):
     image_size: List[int] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
     cnn_primary: List[LayerTypesIdsEnum] = None
-    train_epochs_num: int = 10
+    train_epochs_num: int = 1
     batch_size: int = 24
     num_of_classes = 2
+    activation_types = activation_types
 
     def __post_init__(self):
         if not self.cnn_secondary:
-            self.cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.maxpool2d,
-                                  LayerTypesIdsEnum.dropout]
+            self.cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
         if not self.cnn_primary:
             self.cnn_primary = [LayerTypesIdsEnum.conv2d]
         if not self.primary:
@@ -81,15 +86,25 @@ class GPNNComposer(Composer):
     def __init__(self):
         super().__init__()
 
-    def compose_chain(self, data: InputData, initial_chain: Optional[NNChain],
+    def compose_chain(self, data: InputData, initial_chain: Optional[NASChain],
                       composer_requirements: Optional[GPNNComposerRequirements],
                       metrics: Optional[Callable], optimiser_parameters: GPChainOptimiserParameters = None,
-                      is_visualise: bool = False) -> NNChain:
+                      is_visualise: bool = False) -> NASChain:
         train_data, test_data = train_test_data_setup(data, 0.8)
 
         input_shape = [size for size in composer_requirements.image_size]
         input_shape.append(composer_requirements.channels_num)
         input_shape = tuple(input_shape)
+
+        if not optimiser_parameters:
+            self.optimiser_parameters = GPChainOptimiserParameters(chain_generation_function=random_cnn_chain,
+                                                                   crossover_types=[CrossoverTypesEnum.subtree],
+                                                                   crossover_types_dict=crossover_by_type,
+                                                                   mutation_types=[MutationTypesEnum.simple],
+                                                                   mutation_types_dict=mutation_by_type,
+                                                                   selection_types=[SelectionTypesEnum.tournament])
+        else:
+            self.optimiser_parameters = optimiser_parameters
         metric_function_for_nodes = partial(self.metric_for_nodes,
                                             metrics, train_data, test_data, input_shape,
                                             composer_requirements.min_filters, composer_requirements.max_filters,
@@ -99,8 +114,8 @@ class GPNNComposer(Composer):
         optimiser = GPChainOptimiser(initial_chain=initial_chain,
                                      requirements=composer_requirements,
                                      primary_node_func=NNNodeGenerator.primary_node,
-                                     secondary_node_func=NNNodeGenerator.secondary_node, chain_class=NNChain,
-                                     parameters=optimiser_parameters)
+                                     secondary_node_func=NNNodeGenerator.secondary_node, chain_class=NASChain,
+                                     parameters=self.optimiser_parameters)
 
         best_chain, self.history = optimiser.optimise(metric_function_for_nodes)
 
@@ -117,6 +132,6 @@ class GPNNComposer(Composer):
 
     def metric_for_nodes(self, metric_function, train_data: InputData,
                          test_data: InputData, input_shape, min_filters, max_filters, classes, batch_size, epochs,
-                         chain: NNChain) -> float:
+                         chain: NASChain) -> float:
         chain.fit(train_data, True, input_shape, min_filters, max_filters, classes, batch_size, epochs)
         return metric_function(chain, test_data)

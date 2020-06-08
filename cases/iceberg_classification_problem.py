@@ -6,17 +6,13 @@ from typing import Optional
 from sklearn.metrics import roc_auc_score as roc_auc
 
 from core.composer.chain import Chain
-from core.composer.gp_composer.gp_nn_composer import GPNNComposer, GPNNComposerRequirements
-from core.composer.optimisers.crossover import CrossoverTypesEnum
-from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters, GPTaskTypesEnum
-from core.composer.optimisers.mutation import MutationTypesEnum
-from core.composer.optimisers.regularization import RegularizationTypesEnum
-from core.composer.optimisers.selection import SelectionTypesEnum
+from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
 from core.composer.visualisation import ComposerVisualiser
-from core.layers.layer import LayerTypesIdsEnum
 from core.models.model import *
 from core.repository.quality_metrics_repository import MetricsRepository, ClassificationMetricsEnum
 from core.utils import project_root
+from nas.composer.gp_cnn_composer import GPNNComposer, GPNNComposerRequirements
+from nas.layer import LayerTypesIdsEnum
 
 random.seed(1)
 np.random.seed(1)
@@ -36,7 +32,7 @@ def run_iceberg_classification_problem(file_path,
                                        gp_optimiser_params: Optional[GPChainOptimiserParameters] = None, ):
     dataset_to_compose, dataset_to_validate = InputData.from_json(file_path)
     # the search of the models provided by the framework that can be used as nodes in a chain for the selected task
-    cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.maxpool2d, LayerTypesIdsEnum.dropout]
+    cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
     cnn_primary = [LayerTypesIdsEnum.conv2d]
     nn_primary = [LayerTypesIdsEnum.dense]
     nn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
@@ -44,14 +40,6 @@ def run_iceberg_classification_problem(file_path,
     # the choice of the metric for the chain quality assessment during composition
     metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.ROCAUC)
 
-    if gp_optimiser_params:
-        optimiser_parameters = gp_optimiser_params
-    else:
-        optimiser_parameters = GPChainOptimiserParameters(selection_types=[SelectionTypesEnum.tournament],
-                                                          crossover_types=[CrossoverTypesEnum.cnn_subtree],
-                                                          mutation_types=[MutationTypesEnum.none],
-                                                          regularization_type=RegularizationTypesEnum.none,
-                                                          task=GPTaskTypesEnum.cnn_composing)
     composer_requirements = GPNNComposerRequirements(
         cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
@@ -65,7 +53,7 @@ def run_iceberg_classification_problem(file_path,
     chain_evo_composed = composer.compose_chain(data=dataset_to_compose,
                                                 initial_chain=None,
                                                 composer_requirements=composer_requirements,
-                                                metrics=metric_function, optimiser_parameters=optimiser_parameters,
+                                                metrics=metric_function,
                                                 is_visualise=False)
     chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True, input_shape=(75, 75, 3), min_filters=64,
                            max_filters=128, epochs=25)
