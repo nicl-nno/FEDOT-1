@@ -40,7 +40,7 @@ class GPNNComposerRequirements(GPComposerRequirements):
     image_size: List[int] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
     cnn_primary: List[LayerTypesIdsEnum] = None
-    train_epochs_num: int = 1
+    train_epochs_num: int = 10
     batch_size: int = 24
     num_of_classes = 2
     activation_types = activation_types
@@ -100,7 +100,7 @@ class GPNNComposer(Composer):
             self.optimiser_parameters = GPChainOptimiserParameters(chain_generation_function=random_cnn_chain,
                                                                    crossover_types=[CrossoverTypesEnum.subtree],
                                                                    crossover_types_dict=crossover_by_type,
-                                                                   mutation_types=[MutationTypesEnum.simple],
+                                                                   mutation_types=[MutationTypesEnum.growth],
                                                                    mutation_types_dict=mutation_by_type,
                                                                    selection_types=[SelectionTypesEnum.tournament])
         else:

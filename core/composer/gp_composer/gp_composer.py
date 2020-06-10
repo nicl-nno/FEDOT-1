@@ -48,7 +48,7 @@ class GPComposer(Composer):
                                                                                     CrossoverTypesEnum.onepoint],
                                                                    crossover_types_dict=crossover_by_type,
                                                                    mutation_types=[MutationTypesEnum.simple,
-                                                                                   MutationTypesEnum.growth,
+                                                                                   MutationTypesEnum.local_growth,
                                                                                    MutationTypesEnum.reduce],
                                                                    mutation_types_dict=mutation_by_type,
                                                                    selection_types=[SelectionTypesEnum.tournament])

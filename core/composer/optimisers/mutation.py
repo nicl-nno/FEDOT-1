@@ -3,14 +3,15 @@ from dataclasses import dataclass
 from enum import Enum
 from random import random, choice, randint
 from typing import (Any, Callable)
-
+from functools import partial
 from core.composer.chain import Chain, List
-from core.composer.optimisers.gp_operators import nodes_from_height, node_depth, random_ml_chain
+from core.composer.optimisers.gp_operators import nodes_from_height, node_depth, random_ml_chain, node_height
 
 
 class MutationTypesEnum(Enum):
     simple = 'simple'
     growth = 'growth'
+    local_growth = 'local_growth'
     reduce = 'reduce'
     none = 'none'
 
@@ -85,15 +86,24 @@ def simple_mutation(chain: Any, parameters: MutationParams) -> Any:
     return chain
 
 
-def growth_mutation(chain: Any, parameters: MutationParams) -> Any:
+def growth_mutation(chain: Any, parameters: MutationParams, local_growth=True) -> Any:
     random_layer_in_chain = randint(0, chain.depth - 1)
     node_from_chain = choice(nodes_from_height(chain.root_node, random_layer_in_chain))
-    is_primary_node_selected = (not node_from_chain.nodes_from) or (
-            node_from_chain.nodes_from and node_from_chain != chain.root_node and randint(0, 1))
+    if local_growth:
+        is_primary_node_selected = (not node_from_chain.nodes_from) or (
+                node_from_chain.nodes_from and node_from_chain != chain.root_node and randint(0, 1))
+    else:
+        is_primary_node_selected = randint(0, 1) and not node_height(chain, node_from_chain) \
+                                                         < parameters.requirements.max_depth
+
     if is_primary_node_selected:
         new_subtree = parameters.primary_node_func(model_type=choice(parameters.requirements.primary))
     else:
-        max_depth = node_depth(node_from_chain)
+        if local_growth:
+            max_depth = node_depth(node_from_chain)
+        else:
+
+            max_depth = parameters.requirements.max_depth - node_height(chain, node_from_chain)
         new_subtree = random_ml_chain(parameters.chain_class, parameters.secondary_node_func,
                                       parameters.primary_node_func, parameters.requirements,
                                       max_depth=max_depth).root_node
@@ -116,6 +126,7 @@ def reduce_mutation(chain: Any, parameters: MutationParams) -> Any:
 
 mutation_by_type = {
     MutationTypesEnum.simple: simple_mutation,
-    MutationTypesEnum.growth: growth_mutation,
+    MutationTypesEnum.growth: partial(growth_mutation, local_growth=False),
+    MutationTypesEnum.local_growth: partial(growth_mutation, local_growth=True),
     MutationTypesEnum.reduce: reduce_mutation
 }

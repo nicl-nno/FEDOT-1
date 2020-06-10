@@ -8,11 +8,12 @@ from sklearn.metrics import roc_auc_score as roc_auc
 from core.composer.chain import Chain
 from core.composer.composer import ComposerRequirements, DummyChainTypeEnum, DummyComposer
 from core.composer.gp_composer.gp_composer import GPComposer, GPComposerRequirements
-from core.composer.optimisers.crossover import CrossoverTypesEnum
+from core.composer.optimisers.crossover import CrossoverTypesEnum, crossover_by_type
 from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
-from core.composer.optimisers.mutation import MutationTypesEnum
+from core.composer.optimisers.mutation import MutationTypesEnum, mutation_by_type
 from core.composer.optimisers.regularization import RegularizationTypesEnum
 from core.composer.optimisers.selection import SelectionTypesEnum
+from core.composer.optimisers.gp_operators import random_ml_chain
 from core.composer.visualisation import ComposerVisualiser
 from core.models.model import *
 from core.repository.dataset_types import NumericalDataTypesEnum, CategoricalDataTypesEnum
@@ -60,14 +61,15 @@ def run_credit_scoring_problem(train_file_path, test_file_path,
     else:
         optimiser_parameters = GPChainOptimiserParameters(selection_types=[SelectionTypesEnum.tournament],
                                                           crossover_types=[CrossoverTypesEnum.subtree],
-                                                          mutation_types=[MutationTypesEnum.simple,
-                                                                          MutationTypesEnum.growth,
-                                                                          MutationTypesEnum.reduce],
-                                                          regularization_type=RegularizationTypesEnum.decremental)
+                                                          mutation_types=[MutationTypesEnum.growth],
+                                                          regularization_type=RegularizationTypesEnum.decremental,
+                                                          chain_generation_function=random_ml_chain,
+                                                          crossover_types_dict=crossover_by_type,
+                                                          mutation_types_dict=mutation_by_type)
     composer_requirements = GPComposerRequirements(
         primary=available_model_types,
         secondary=available_model_types, max_arity=4,
-        max_depth=3, pop_size=20, num_of_generations=20,
+        max_depth=3, pop_size=5, num_of_generations=5,
         crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time)
 
     # Create GP-based composer

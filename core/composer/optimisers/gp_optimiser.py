@@ -9,7 +9,6 @@ from typing import (
 )
 
 import numpy as np
-
 from core.composer.optimisers.crossover import CrossoverTypesEnum, crossover
 from core.composer.optimisers.heredity import heredity, GeneticSchemeTypesEnum
 from core.composer.optimisers.mutation import MutationTypesEnum, mutation
