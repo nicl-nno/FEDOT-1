@@ -13,6 +13,7 @@ from core.repository.quality_metrics_repository import MetricsRepository, Classi
 from core.utils import project_root
 from nas.composer.gp_cnn_composer import GPNNComposer, GPNNComposerRequirements
 from nas.layer import LayerTypesIdsEnum
+from nas.cnn_data import from_json
 
 random.seed(1)
 np.random.seed(1)
@@ -30,7 +31,7 @@ def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) ->
 def run_iceberg_classification_problem(file_path,
                                        max_lead_time: datetime.timedelta = datetime.timedelta(minutes=20),
                                        gp_optimiser_params: Optional[GPChainOptimiserParameters] = None, ):
-    dataset_to_compose, dataset_to_validate = InputData.from_json(file_path)
+    dataset_to_compose, dataset_to_validate = from_json(file_path)
     # the search of the models provided by the framework that can be used as nodes in a chain for the selected task
     cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
     cnn_primary = [LayerTypesIdsEnum.conv2d]
@@ -49,12 +50,13 @@ def run_iceberg_classification_problem(file_path,
     # Create GP-based composer
     composer = GPNNComposer()
 
+    gp_optimiser_params = gp_optimiser_params if gp_optimiser_params else None
     # the optimal chain generation by composition - the most time-consuming task
     chain_evo_composed = composer.compose_chain(data=dataset_to_compose,
                                                 initial_chain=None,
                                                 composer_requirements=composer_requirements,
                                                 metrics=metric_function,
-                                                is_visualise=False)
+                                                is_visualise=False, optimiser_parameters= gp_optimiser_params)
     chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True, input_shape=(75, 75, 3), min_filters=64,
                            max_filters=128, epochs=25)
 
