@@ -119,6 +119,7 @@ def create_conv_layer_using_image_size_constraint(requirements):
     conv_strides = requirements.conv_strides
     pool_size = requirements.pool_kernel_size
     pool_strides = requirements.pool_strides
+    num_of_filters = choice(requirements.filters)
     if is_image_has_permissible_size(StaticStorage.current_image_size, 2):
 
         StaticStorage.current_image_size = [
@@ -139,7 +140,7 @@ def create_conv_layer_using_image_size_constraint(requirements):
 
     layer_params = LayerParams(layer_type=LayerTypesIdsEnum.conv2d, activation=activation,
                                kernel_size=kernel_size, conv_strides=conv_strides,
-                               pool_size=pool_size, pool_strides=pool_strides)
+                               pool_size=pool_size, pool_strides=pool_strides, num_of_filters=num_of_filters)
     return layer_params
 
 
@@ -191,7 +192,8 @@ def branch_output_shape(root: Any, image_size: List[float], subtree_to_delete: A
 
     return image_size
 
-def conv_output_shape(node,image_size):
+
+def conv_output_shape(node, image_size):
     image_size = [
         output_dimension(image_size[i], node.layer_params.kernel_size[i], node.layer_params.conv_strides[i]) for
         i in range(len(image_size))]
@@ -201,4 +203,3 @@ def conv_output_shape(node,image_size):
             for i in range(len(image_size))]
         image_size = [floor(side_size) for side_size in image_size]
     return image_size
-

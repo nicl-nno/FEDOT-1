@@ -41,16 +41,16 @@ def generate_structure(node: Any):
         return [node]
 
 
-def create_nn_model(chain: Any, input_shape: tuple, min_filters: int, max_filters: int, classes: int = 2):
+def create_nn_model(chain: Any, input_shape: tuple, classes: int = 2):
     structure = generate_structure(chain.root_node)
     model = models.Sequential()
-    filters_num = min_filters
     for i, layer in enumerate(structure):
         type = layer.layer_params.layer_type
         if type == LayerTypesIdsEnum.conv2d:
             activation = layer.layer_params.activation.value
             kernel_size = layer.layer_params.kernel_size
             conv_strides = layer.layer_params.conv_strides
+            filters_num = layer.layer_params.num_of_filters
             if i == 0:
                 model.add(
                     layers.Conv2D(filters_num, kernel_size=kernel_size, activation=activation, input_shape=input_shape,
@@ -58,10 +58,6 @@ def create_nn_model(chain: Any, input_shape: tuple, min_filters: int, max_filter
             else:
                 model.add(
                     layers.Conv2D(filters_num, kernel_size=kernel_size, activation=activation, strides=conv_strides))
-
-            if filters_num < max_filters:
-                filters_num = filters_num * 2
-
             if layer.layer_params.pool_size:
                 pool_size = layer.layer_params.pool_size
                 pool_strides = layer.layer_params.pool_strides

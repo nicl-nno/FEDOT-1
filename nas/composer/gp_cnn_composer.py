@@ -36,7 +36,7 @@ class GPNNComposerRequirements(GPComposerRequirements):
     min_filters = 64
     max_filters = 128
     channels_num = 3
-    max_drop_size: int = 1
+    max_drop_size: int = 0.5
     image_size: List[int] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
     cnn_primary: List[LayerTypesIdsEnum] = None
@@ -68,7 +68,7 @@ class GPNNComposerRequirements(GPComposerRequirements):
             raise ValueError(f'min_num_of_neurons value is unacceptable')
         if self.max_num_of_neurons < 1:
             raise ValueError(f'max_num_of_neurons value is unacceptable')
-        if self.max_drop_size < 1:
+        if self.max_drop_size > 1:
             raise ValueError(f'max_drop_size value is unacceptable')
         if self.channels_num > 3 or self.channels_num < 1:
             raise ValueError(f'channels_num value must be anywhere from 1 to 3')
@@ -80,6 +80,15 @@ class GPNNComposerRequirements(GPComposerRequirements):
             raise ValueError(f'min_filters value is unacceptable')
         if self.max_filters < 2:
             raise ValueError(f'max_filters value is unacceptable')
+
+    @property
+    def filters(self):
+        filters = [self.min_filters]
+        i = self.min_filters
+        while i < self.max_filters:
+            i = i * 2
+            filters.append(i)
+        return filters
 
 
 class GPNNComposer(Composer):

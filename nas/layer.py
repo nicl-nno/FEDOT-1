@@ -35,3 +35,4 @@ class LayerParams:
     kernel_size: Tuple[int, int] = None
     conv_strides: Tuple[int, int] = None
     pool_strides: Tuple[int, int] = None
+    num_of_filters: int = None

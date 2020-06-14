@@ -38,7 +38,8 @@ def cnn_simple_mutation(chain: Any, parameters: MutationParams) -> Any:
                                                kernel_size=node.layer_params.kernel_size,
                                                conv_strides=node.layer_params.conv_strides,
                                                pool_size=node.layer_params.pool_size,
-                                               pool_strides=node.layer_params.pool_strides)
+                                               pool_strides=node.layer_params.pool_strides,
+                                               num_of_filters=choice(parameters.requirements.filters))
             else:
                 new_layer_params = get_random_layer_params(new_node_type, parameters.requirements)
             new_node = parameters.primary_node_func(layer_params=new_layer_params)
@@ -76,7 +77,8 @@ def cnn_growth_mutation(chain: Any, parameters: MutationParams, local_growth=Tru
                                            kernel_size=node_from_chain.layer_params.kernel_size,
                                            conv_strides=node_from_chain.layer_params.conv_strides,
                                            pool_size=node_from_chain.layer_params.pool_size,
-                                           pool_strides=node_from_chain.layer_params.pool_strides)
+                                           pool_strides=node_from_chain.layer_params.pool_strides,
+                                           num_of_filters=choice(parameters.requirements.filters))
         else:
             new_layer_params = get_random_layer_params(new_node_type, parameters.requirements)
         new_subtree = parameters.secondary_node_func(layer_params=new_layer_params)
