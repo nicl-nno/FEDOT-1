@@ -1,8 +1,8 @@
 from random import choice, randint
+from math import floor
 from typing import (Tuple, List, Any, Callable)
 from nas.layer import LayerTypesIdsEnum, LayerParams
 from nas.keras_eval import generate_structure
-from math import floor
 
 
 def output_dimension(input_dimension: float, kernel_size: int, stride: int) -> float:
@@ -66,7 +66,7 @@ class StaticStorage:
     current_image_size = None
 
 
-def is_image_has_permissible_size(image_size, min_size: int, ):
+def is_image_has_permissible_size(image_size, min_size: int = 2):
     return all([side_size > min_size for side_size in image_size])
 
 
@@ -79,13 +79,14 @@ def random_branch(secondary_node_func: Callable, primary_node_func: Callable, re
         offspring_size = offspring_size if not offspring_size is None else randint(requirements.min_arity,
                                                                                    requirements.max_arity)
         for offspring_node in range(offspring_size):
-            if not node_parent_height is None:
-                height = node_parent_height + 1
-            else:
+            if node_parent_height is None:
                 height = 0
+            else:
+                height = node_parent_height + 1
             is_max_depth_exceeded = height >= max_depth - 1
             is_primary_node_selected = height < max_depth - 1 and randint(0, 1)
-            primary = is_max_depth_exceeded or is_primary_node_selected
+            is_image_size_permissible = is_image_has_permissible_size(StaticStorage.current_image_size)
+            primary = is_max_depth_exceeded or is_primary_node_selected or not is_image_size_permissible
             if primary:
                 rand_node_type = choice(requirements.cnn_primary) if is_conv_branch else choice(requirements.primary)
             else:
@@ -130,7 +131,7 @@ def create_conv_layer_using_image_size_constraint(requirements):
         if is_image_has_permissible_size(StaticStorage.current_image_size, 2):
 
             StaticStorage.current_image_size = [
-                output_dimension(StaticStorage.current_image_size[i], pool_size[i], pool_strides[i]) for
+                floor(output_dimension(StaticStorage.current_image_size[i], pool_size[i], pool_strides[i])) for
                 i in range(len(StaticStorage.current_image_size))]
         else:
             pool_size, pool_strides = None, None

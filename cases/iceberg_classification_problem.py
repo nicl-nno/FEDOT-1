@@ -18,7 +18,7 @@ random.seed(1)
 np.random.seed(1)
 
 
-def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float, float]:
+def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float]:
     # the execution of the obtained composite models
     predicted = chain.predict(dataset_to_validate)
     # the quality assessment for the simulation results
@@ -26,10 +26,8 @@ def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) ->
                             y_score=predicted.predict)
     log_loss_value = log_loss(y_true=dataset_to_validate.target,
                               y_pred=predicted.predict)
-    accuracy_value = accuracy_score(y_true=dataset_to_validate.target,
-                                    y_pred=predicted.predict)
 
-    return roc_auc_value, log_loss_value, accuracy_value
+    return roc_auc_value, log_loss_value
 
 
 def run_iceberg_classification_problem(file_path,
@@ -74,12 +72,11 @@ def run_iceberg_classification_problem(file_path,
     ComposerVisualiser.visualise(chain_evo_composed)
 
     # the quality assessment for the obtained composite models
-    roc_on_valid_evo_composed, log_loss_on_valid_evo_composed, accuracy_on_valid_evo_composed =\
+    roc_on_valid_evo_composed, log_loss_on_valid_evo_composed = \
         calculate_validation_metric(chain_evo_composed, dataset_to_validate)
 
     print(f'Composed ROC AUC is {round(roc_on_valid_evo_composed, 3)}')
     print(f'Composed LOG LOSS is {round(log_loss_on_valid_evo_composed, 3)}')
-    print(f'Composed ACCURACY is {round(accuracy_on_valid_evo_composed, 3)}')
 
     return roc_on_valid_evo_composed, chain_evo_composed
 
