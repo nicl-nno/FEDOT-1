@@ -1,10 +1,9 @@
 import datetime
 import os
 import random
-from typing import Optional
+from typing import Optional, Tuple
 
-from sklearn.metrics import roc_auc_score as roc_auc
-
+from sklearn.metrics import roc_auc_score as roc_auc, log_loss, accuracy_score
 from core.composer.chain import Chain
 from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
 from core.composer.visualisation import ComposerVisualiser
@@ -19,13 +18,18 @@ random.seed(1)
 np.random.seed(1)
 
 
-def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> float:
+def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float, float]:
     # the execution of the obtained composite models
     predicted = chain.predict(dataset_to_validate)
     # the quality assessment for the simulation results
     roc_auc_value = roc_auc(y_true=dataset_to_validate.target,
                             y_score=predicted.predict)
-    return roc_auc_value
+    log_loss_value = log_loss(y_true=dataset_to_validate.target,
+                              y_pred=predicted.predict)
+    accuracy_value = accuracy_score(y_true=dataset_to_validate.target,
+                                    y_pred=predicted.predict)
+
+    return roc_auc_value, log_loss_value, accuracy_value
 
 
 def run_iceberg_classification_problem(file_path,
@@ -44,7 +48,7 @@ def run_iceberg_classification_problem(file_path,
     composer_requirements = GPNNComposerRequirements(
         cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
-        max_depth=4, pop_size=10, num_of_generations=10,
+        max_depth=6, pop_size=20, num_of_generations=20,
         crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75])
 
     # Create GP-based composer
@@ -56,16 +60,26 @@ def run_iceberg_classification_problem(file_path,
                                                 initial_chain=None,
                                                 composer_requirements=composer_requirements,
                                                 metrics=metric_function,
-                                                is_visualise=False, optimiser_parameters= gp_optimiser_params)
+                                                is_visualise=True, optimiser_parameters=gp_optimiser_params)
+
     chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True, input_shape=(75, 75, 3), min_filters=64,
                            max_filters=128, epochs=25)
+
+    json_file = 'model.json'
+    model_json = chain_evo_composed.model.to_json()
+
+    with open(json_file, 'w') as f:
+        f.write(model_json)
 
     ComposerVisualiser.visualise(chain_evo_composed)
 
     # the quality assessment for the obtained composite models
-    roc_on_valid_evo_composed = calculate_validation_metric(chain_evo_composed, dataset_to_validate)
+    roc_on_valid_evo_composed, log_loss_on_valid_evo_composed, accuracy_on_valid_evo_composed =\
+        calculate_validation_metric(chain_evo_composed, dataset_to_validate)
 
     print(f'Composed ROC AUC is {round(roc_on_valid_evo_composed, 3)}')
+    print(f'Composed LOG LOSS is {round(log_loss_on_valid_evo_composed, 3)}')
+    print(f'Composed ACCURACY is {round(accuracy_on_valid_evo_composed, 3)}')
 
     return roc_on_valid_evo_composed, chain_evo_composed
 

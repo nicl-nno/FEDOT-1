@@ -26,6 +26,7 @@ class ComposerVisualiser:
     @staticmethod
     def visualise(chain: Chain):
         try:
+            chain.sort_nodes()
             graph, node_labels = as_nx_graph(chain=chain)
             pos = node_positions(graph.to_undirected())
             plt.figure(figsize=(10, 16))

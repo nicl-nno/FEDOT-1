@@ -105,7 +105,6 @@ class GPChainOptimiser:
 
         return self.best_individual, self.history
 
-
     @property
     def best_individual(self) -> Any:
         best_ind = min(self.population, key=lambda ind: ind.fitness)
