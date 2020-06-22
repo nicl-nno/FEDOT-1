@@ -2,7 +2,6 @@ import datetime
 import os
 import random
 from typing import Optional, Tuple
-
 from sklearn.metrics import roc_auc_score as roc_auc, log_loss, accuracy_score
 from core.composer.chain import Chain
 from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
@@ -18,20 +17,24 @@ random.seed(1)
 np.random.seed(1)
 
 
-def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float]:
+def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float, float]:
     # the execution of the obtained composite models
     predicted = chain.predict(dataset_to_validate)
     # the quality assessment for the simulation results
     roc_auc_value = roc_auc(y_true=dataset_to_validate.target,
                             y_score=predicted.predict)
+    y_pred = [np.float64(predict[0]) for predict in predicted.predict]
     log_loss_value = log_loss(y_true=dataset_to_validate.target,
-                              y_pred=predicted.predict)
+                              y_pred=y_pred)
+    y_pred = [round(predict[0]) for predict in predicted.predict]
+    accuracy_score_value = accuracy_score(y_true=dataset_to_validate.target,
+                                          y_pred=y_pred)
 
-    return roc_auc_value, log_loss_value
+    return roc_auc_value, log_loss_value, accuracy_score_value
 
 
 def run_iceberg_classification_problem(file_path,
-                                       max_lead_time: datetime.timedelta = datetime.timedelta(minutes=20),
+                                       max_lead_time: datetime.timedelta = datetime.timedelta(minutes=500),
                                        gp_optimiser_params: Optional[GPChainOptimiserParameters] = None, ):
     dataset_to_compose, dataset_to_validate = from_json(file_path)
     # the search of the models provided by the framework that can be used as nodes in a chain for the selected task
@@ -41,12 +44,14 @@ def run_iceberg_classification_problem(file_path,
     nn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
 
     # the choice of the metric for the chain quality assessment during composition
-    metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.ROCAUC)
+    metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.log_loss)
+    # metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.ROCAUC)
+    # metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.accuracy)
 
     composer_requirements = GPNNComposerRequirements(
         cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
-        max_depth=6, pop_size=20, num_of_generations=20,
+        max_depth=7, pop_size=30, num_of_generations=50,
         crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75])
 
     # Create GP-based composer
@@ -61,7 +66,7 @@ def run_iceberg_classification_problem(file_path,
                                                 is_visualise=True, optimiser_parameters=gp_optimiser_params)
 
     chain_evo_composed.fit(input_data=dataset_to_compose, verbose=True, input_shape=(75, 75, 3), min_filters=64,
-                           max_filters=128, epochs=25)
+                           max_filters=128, epochs=30)
 
     json_file = 'model.json'
     model_json = chain_evo_composed.model.to_json()
@@ -72,11 +77,12 @@ def run_iceberg_classification_problem(file_path,
     ComposerVisualiser.visualise(chain_evo_composed)
 
     # the quality assessment for the obtained composite models
-    roc_on_valid_evo_composed, log_loss_on_valid_evo_composed = \
+    roc_on_valid_evo_composed, log_loss_on_valid_evo_composed, accuracy_score_on_valid_evo_composed = \
         calculate_validation_metric(chain_evo_composed, dataset_to_validate)
 
     print(f'Composed ROC AUC is {round(roc_on_valid_evo_composed, 3)}')
     print(f'Composed LOG LOSS is {round(log_loss_on_valid_evo_composed, 3)}')
+    print(f'Composed ACCURACY is {round(accuracy_score_on_valid_evo_composed, 3)}')
 
     return roc_on_valid_evo_composed, chain_evo_composed
 

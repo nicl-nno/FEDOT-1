@@ -48,7 +48,7 @@ def cnn_simple_mutation(chain: Any, parameters: MutationParams) -> Any:
     for is_fully_connected_branch in (False, True):
         replace_node_to_random_recursive(chain.root_node.nodes_from[int(is_fully_connected_branch)],
                                          is_fully_connected_branch)
-
+    chain.sort_nodes()
     return chain
 
 
@@ -110,6 +110,7 @@ def cnn_growth_mutation(chain: Any, parameters: MutationParams, local_growth=Tru
                                                               parameters.requirements.image_size)
             if not is_new_conv_branch_permissible:
                 chain = deepcopy(chain_copy)
+    chain.sort_nodes()
     return chain
 
 

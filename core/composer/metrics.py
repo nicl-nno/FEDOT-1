@@ -1,8 +1,9 @@
 from abc import abstractmethod
 
-from sklearn.metrics import mean_squared_error, roc_auc_score
+from sklearn.metrics import mean_squared_error, roc_auc_score, log_loss, accuracy_score
 
 from core.chain_validation import validate
+import numpy as np
 from core.composer.chain import Chain
 from core.models.data import InputData
 
@@ -40,10 +41,43 @@ class RocAucMetric(ChainMetric):
     @from_maximised_metric
     def get_value(chain: Chain, reference_data: InputData) -> float:
         try:
-            #validate(chain)
+            # validate(chain)
             results = chain.predict(reference_data)
             score = round(roc_auc_score(y_score=results.predict,
                                         y_true=reference_data.target), 3)
+        except Exception as ex:
+            print(ex)
+            score = 0.5
+
+        return score
+
+
+class LogLossMetric(ChainMetric):
+    @staticmethod
+    def get_value(chain: Chain, reference_data: InputData) -> float:
+        try:
+            # validate(chain)
+            results = chain.predict(reference_data)
+            y_pred = [np.float64(predict[0]) for predict in results.predict]
+            score = round(log_loss(y_true=reference_data.target,
+                                   y_pred=y_pred), 3)
+        except Exception as ex:
+            print(ex)
+            score = 0.5
+
+        return score
+
+
+class AccuracyScore(ChainMetric):
+    @staticmethod
+    @from_maximised_metric
+    def get_value(chain: Chain, reference_data: InputData) -> float:
+        try:
+            # validate(chain)
+            results = chain.predict(reference_data)
+            y_pred = [round(predict[0]) for predict in results.predict]
+            score = round(accuracy_score(y_true=reference_data.target,
+                                         y_pred=y_pred), 3)
         except Exception as ex:
             print(ex)
             score = 0.5

@@ -1,7 +1,8 @@
 from enum import Enum
 from typing import Callable
 
-from core.composer.metrics import RmseMetric, StructuralComplexityMetric, MaeMetric, RocAucMetric
+from core.composer.metrics import RmseMetric, StructuralComplexityMetric, MaeMetric, RocAucMetric, LogLossMetric, \
+    AccuracyScore
 
 
 class MetricsEnum(Enum):
@@ -20,6 +21,8 @@ class ComplexityMetricsEnum(MetricsEnum):
 class ClassificationMetricsEnum(QualityMetricsEnum):
     ROCAUC = 'roc_auc'
     precision = 'precision'
+    log_loss = 'log_loss'
+    accuracy = 'accuracy'
 
 
 class RegressionMetricsEnum(QualityMetricsEnum):
@@ -30,6 +33,8 @@ class RegressionMetricsEnum(QualityMetricsEnum):
 class MetricsRepository:
     __metrics_implementations = {
         ClassificationMetricsEnum.ROCAUC: RocAucMetric.get_value,
+        ClassificationMetricsEnum.log_loss: LogLossMetric.get_value,
+        ClassificationMetricsEnum.accuracy: AccuracyScore.get_value,
         RegressionMetricsEnum.MAE: MaeMetric.get_value,
         RegressionMetricsEnum.RMSE: RmseMetric.get_value,
         ComplexityMetricsEnum.structural: StructuralComplexityMetric.get_value

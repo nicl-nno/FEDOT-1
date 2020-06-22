@@ -3,7 +3,7 @@ import datetime
 import gc
 import os
 import numpy as np
-from benchmark.experimens.credit_scoring_experiment import run_credit_scoring_problem
+from benchmark.experiments.credit_scoring_experiment import run_credit_scoring_problem
 from core.composer.optimisers.crossover import CrossoverTypesEnum
 from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
 from core.composer.optimisers.mutation import MutationTypesEnum
@@ -11,7 +11,7 @@ from core.composer.optimisers.regularization import RegularizationTypesEnum
 from core.composer.optimisers.selection import SelectionTypesEnum
 from core.composer.optimisers.gp_optimiser import GeneticSchemeTypesEnum
 from core.utils import project_root
-from benchmark.experimens.viz import show_history_optimization_comparison
+from benchmark.experiments.viz import show_history_optimization_comparison
 
 
 def write_header_to_csv(f):

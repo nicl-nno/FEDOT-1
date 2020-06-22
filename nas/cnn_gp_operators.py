@@ -157,6 +157,7 @@ def random_cnn_chain(chain_class: Any, secondary_node_func: Callable, primary_no
         random_branch(chain=chain, secondary_node_func=secondary_node_func, primary_node_func=primary_node_func,
                       requirements=requirements, is_conv_branch=is_conv_branch, height=height,
                       node_parent=chain.root_node, offspring_size=offspring_size)
+    chain.sort_nodes()
     return chain
 
 

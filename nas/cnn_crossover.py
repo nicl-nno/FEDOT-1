@@ -28,6 +28,7 @@ def cnn_subtree_crossover(chain_first: Any, chain_second: Any, requirements) -> 
                                                           requirements.image_size)
         if not is_new_conv_branch_permissible:
             chain_first = deepcopy(chain_second)
+    chain_first.sort_nodes()
     return chain_first
 
 

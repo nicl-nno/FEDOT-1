@@ -31,8 +31,8 @@ class GPNNComposerRequirements(GPComposerRequirements):
     conv_strides: Tuple[int, int] = (1, 1)
     pool_kernel_size: Tuple[int, int] = (2, 2)
     pool_strides: Tuple[int, int] = (2, 2)
-    min_num_of_neurons: int = 100
-    max_num_of_neurons: int = 200
+    min_num_of_neurons: int = 200
+    max_num_of_neurons: int = 512
     min_filters = 64
     max_filters = 128
     channels_num = 3
@@ -40,7 +40,7 @@ class GPNNComposerRequirements(GPComposerRequirements):
     image_size: List[int] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
     cnn_primary: List[LayerTypesIdsEnum] = None
-    train_epochs_num: int = 10
+    train_epochs_num: int = 20
     batch_size: int = 24
     num_of_classes = 2
     activation_types = activation_types
