@@ -40,7 +40,7 @@ class GPNNComposerRequirements(GPComposerRequirements):
     image_size: List[int] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
     cnn_primary: List[LayerTypesIdsEnum] = None
-    train_epochs_num: int = 20
+    train_epochs_num: int = 10
     batch_size: int = 24
     num_of_classes = 2
     activation_types = activation_types

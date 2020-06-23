@@ -30,7 +30,10 @@ class CompositionTimer(object):
         return possible
 
     def is_max_time_reached(self, max_lead_time: datetime.timedelta, generation_num: int) -> bool:
-        max_lead_time = 0 if max_lead_time.seconds < 0 else max_lead_time.seconds / 60.
+        if max_lead_time.days:
+            max_lead_time = 0 if max_lead_time.days < 0 else max_lead_time.days * 1440
+        else:
+            max_lead_time = 0 if max_lead_time.seconds < 0 else max_lead_time.seconds / 60.
         if max_lead_time:
             reached = not self._is_next_iteration_possible(generation_num, max_lead_time)
         else:

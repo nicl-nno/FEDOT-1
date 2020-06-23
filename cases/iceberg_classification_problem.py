@@ -34,7 +34,7 @@ def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) ->
 
 
 def run_iceberg_classification_problem(file_path,
-                                       max_lead_time: datetime.timedelta = datetime.timedelta(minutes=500),
+                                       max_lead_time: datetime.timedelta = datetime.timedelta(days=2),
                                        gp_optimiser_params: Optional[GPChainOptimiserParameters] = None, ):
     dataset_to_compose, dataset_to_validate = from_json(file_path)
     # the search of the models provided by the framework that can be used as nodes in a chain for the selected task
@@ -51,7 +51,7 @@ def run_iceberg_classification_problem(file_path,
     composer_requirements = GPNNComposerRequirements(
         cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
-        max_depth=7, pop_size=30, num_of_generations=50,
+        max_depth=7, pop_size=20, num_of_generations=20,
         crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75])
 
     # Create GP-based composer
