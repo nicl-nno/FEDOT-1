@@ -31,11 +31,12 @@ def subtree_crossover(chain_first: Any, chain_second: Any, requirements) -> Any:
     max_depth = requirements.max_depth
     random_layer_in_chain_first = randint(0, chain_first.depth - 1)
     random_layer_in_chain_second = randint(0, chain_second.depth - 1)
-    if random_layer_in_chain_first == 0 and random_layer_in_chain_second == 0:
-        if randint(0, 1):
-            random_layer_in_chain_first = randint(1, chain_first.depth - 1)
-        else:
-            random_layer_in_chain_second = randint(1, chain_second.depth - 1)
+    if chain_first.depth - 1 != 0 and chain_second.depth - 1 != 0:
+        if random_layer_in_chain_first == 0 and random_layer_in_chain_second == 0:
+            if randint(0, 1):
+                random_layer_in_chain_first = randint(1, chain_first.depth - 1)
+            else:
+                random_layer_in_chain_second = randint(1, chain_second.depth - 1)
 
     node_from_chain_first = choice(nodes_from_height(chain_first.root_node, random_layer_in_chain_first))
     node_from_chain_second = choice(nodes_from_height(chain_second.root_node, random_layer_in_chain_second))

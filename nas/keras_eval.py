@@ -9,51 +9,6 @@ from nas.layer import LayerTypesIdsEnum
 from keras.callbacks import EarlyStopping, ModelCheckpoint, ReduceLROnPlateau
 
 
-def getModel():
-    # Build keras model
-
-    model = models.Sequential()
-
-    # CNN 1
-    model.add(layers.Conv2D(64, kernel_size=(3, 3), activation='relu', input_shape=(75, 75, 3)))
-    model.add(layers.MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
-    model.add(layers.Dropout(0.2))
-
-    # CNN 2
-    model.add(layers.Conv2D(128, kernel_size=(3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(layers.Dropout(0.2))
-
-    # CNN 3
-    model.add(layers.Conv2D(128, kernel_size=(3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(layers.Dropout(0.2))
-
-    # CNN 4
-    model.add(layers.Conv2D(64, kernel_size=(3, 3), activation='relu'))
-    model.add(layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
-    model.add(layers.Dropout(0.2))
-
-    # You must flatten the data for the dense layers
-    model.add(layers.Flatten())
-
-    # Dense 1
-    model.add(layers.Dense(512, activation='relu'))
-    model.add(layers.Dropout(0.2))
-
-    # Dense 2
-    model.add(layers.Dense(256, activation='relu'))
-    model.add(layers.Dropout(0.2))
-
-    # Output
-    model.add(layers.Dense(1, activation="sigmoid"))
-
-    optimizer = optimizers.Adam(lr=0.001, decay=0.0)
-    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-
-    return model
-
-
 def keras_model_fit(model, input_data: InputData, verbose: bool = True, batch_size: int = 24,
                     epochs: int = 15):
     earlyStopping = EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='min')
@@ -93,9 +48,9 @@ def generate_structure(node: Any):
 
 
 def create_nn_model(chain: Any, input_shape: tuple, classes: int = 2):
-    structure = generate_structure(chain.root_node)
+    nn_structure = chain.cnn_nodes + generate_structure(chain.root_node)
     model = models.Sequential()
-    for i, layer in enumerate(structure):
+    for i, layer in enumerate(nn_structure):
         type = layer.layer_params.layer_type
         if type == LayerTypesIdsEnum.conv2d:
             activation = layer.layer_params.activation.value
@@ -114,9 +69,10 @@ def create_nn_model(chain: Any, input_shape: tuple, classes: int = 2):
             if layer.layer_params.pool_size:
                 pool_size = layer.layer_params.pool_size
                 pool_strides = layer.layer_params.pool_strides
-                model.add(layers.MaxPooling2D(pool_size=pool_size, strides=pool_strides))
-        elif type == LayerTypesIdsEnum.flatten:
-            model.add(layers.Flatten())
+                if layer.layer_params.pool_type == LayerTypesIdsEnum.maxpool2d:
+                    model.add(layers.MaxPooling2D(pool_size=pool_size, strides=pool_strides))
+                elif layer.layer_params.pool_type == LayerTypesIdsEnum.averagepool2d:
+                    model.add(layers.AveragePooling2D(pool_size=pool_size, strides=pool_strides))
         elif type == LayerTypesIdsEnum.dropout:
             drop = layer.layer_params.drop
             model.add(layers.Dropout(drop))
@@ -124,6 +80,10 @@ def create_nn_model(chain: Any, input_shape: tuple, classes: int = 2):
             activation = layer.layer_params.activation.value
             neurons_num = layer.layer_params.neurons
             model.add(layers.Dense(neurons_num, activation=activation))
+        if i == len(chain.cnn_nodes) - 1:
+            model.add(layers.Flatten())
+            neurons_num = model.layers[len(model.layers) - 1].output_shape[1]
+            model.add(layers.Dense(neurons_num, activation='relu'))
     # Output
     output_shape = 1 if classes == 2 else classes
     model.add(layers.Dense(output_shape, activation="sigmoid"))

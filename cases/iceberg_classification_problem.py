@@ -3,9 +3,9 @@ import os
 import random
 from typing import Optional, Tuple
 from sklearn.metrics import roc_auc_score as roc_auc, log_loss, accuracy_score
-from core.composer.chain import Chain
 from core.composer.optimisers.gp_optimiser import GPChainOptimiserParameters
 from core.composer.visualisation import ComposerVisualiser
+from core.composer.chain import Chain
 from core.models.model import *
 from core.repository.quality_metrics_repository import MetricsRepository, ClassificationMetricsEnum
 from core.utils import project_root
@@ -13,8 +13,8 @@ from nas.composer.gp_cnn_composer import GPNNComposer, GPNNComposerRequirements
 from nas.layer import LayerTypesIdsEnum
 from nas.cnn_data import from_json
 
-random.seed(1)
-np.random.seed(1)
+random.seed(2)
+np.random.seed(2)
 
 
 def calculate_validation_metric(chain: Chain, dataset_to_validate: InputData) -> Tuple[float, float, float]:
@@ -39,20 +39,22 @@ def run_iceberg_classification_problem(file_path,
     dataset_to_compose, dataset_to_validate = from_json(file_path)
     # the search of the models provided by the framework that can be used as nodes in a chain for the selected task
     cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
-    cnn_primary = [LayerTypesIdsEnum.conv2d]
+    conv_types = [LayerTypesIdsEnum.conv2d]
+    pool_types = [LayerTypesIdsEnum.maxpool2d, LayerTypesIdsEnum.averagepool2d]
     nn_primary = [LayerTypesIdsEnum.dense]
     nn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
 
     # the choice of the metric for the chain quality assessment during composition
     metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.log_loss)
+    # additional metrics
     # metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.ROCAUC)
     # metric_function = MetricsRepository().metric_by_id(ClassificationMetricsEnum.accuracy)
 
     composer_requirements = GPNNComposerRequirements(
-        cnn_primary=cnn_primary, cnn_secondary=cnn_secondary,
+        conv_types=conv_types, pool_types=pool_types, cnn_secondary=cnn_secondary,
         primary=nn_primary, secondary=nn_secondary, min_arity=2, max_arity=2,
-        max_depth=7, pop_size=20, num_of_generations=20,
-        crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75])
+        max_depth=3, pop_size=20, num_of_generations=20,
+        crossover_prob=0.8, mutation_prob=0.8, max_lead_time=max_lead_time, image_size=[75, 75], train_epochs_num=2)
 
     # Create GP-based composer
     composer = GPNNComposer()

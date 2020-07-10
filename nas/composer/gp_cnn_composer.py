@@ -29,27 +29,32 @@ from nas.nn_node import NNNodeGenerator
 class GPNNComposerRequirements(GPComposerRequirements):
     conv_kernel_size: Tuple[int, int] = (3, 3)
     conv_strides: Tuple[int, int] = (1, 1)
-    pool_kernel_size: Tuple[int, int] = (2, 2)
+    pool_size: Tuple[int, int] = (2, 2)
     pool_strides: Tuple[int, int] = (2, 2)
-    min_num_of_neurons: int = 200
-    max_num_of_neurons: int = 512
+    min_num_of_neurons: int = 50
+    max_num_of_neurons: int = 200
     min_filters = 64
     max_filters = 128
     channels_num = 3
     max_drop_size: int = 0.5
     image_size: List[int] = None
+    conv_types: List[LayerTypesIdsEnum] = None
     cnn_secondary: List[LayerTypesIdsEnum] = None
-    cnn_primary: List[LayerTypesIdsEnum] = None
+    pool_types: List[LayerTypesIdsEnum] = None
     train_epochs_num: int = 10
     batch_size: int = 24
     num_of_classes = 2
     activation_types = activation_types
+    max_num_of_conv_layers = 4
+    min_num_of_conv_layers = 3
 
     def __post_init__(self):
         if not self.cnn_secondary:
             self.cnn_secondary = [LayerTypesIdsEnum.serial_connection, LayerTypesIdsEnum.dropout]
-        if not self.cnn_primary:
-            self.cnn_primary = [LayerTypesIdsEnum.conv2d]
+        if not self.conv_types:
+            self.conv_types = [LayerTypesIdsEnum.conv2d]
+        if not self.pool_types:
+            self.pool_types = [LayerTypesIdsEnum.maxpool2d, LayerTypesIdsEnum.averagepool2d]
         if not self.primary:
             self.primary = [LayerTypesIdsEnum.dense]
         if not self.secondary:
@@ -61,9 +66,9 @@ class GPNNComposerRequirements(GPComposerRequirements):
         self.conv_kernel_size, self.conv_strides = permissible_kernel_parameters_correct(self.image_size,
                                                                                          self.conv_kernel_size,
                                                                                          self.conv_strides, False)
-        self.pool_kernel_size, self.pool_strides = permissible_kernel_parameters_correct(self.image_size,
-                                                                                         self.pool_kernel_size,
-                                                                                         self.pool_strides, True)
+        self.pool_size, self.pool_strides = permissible_kernel_parameters_correct(self.image_size,
+                                                                                  self.pool_size,
+                                                                                  self.pool_strides, True)
         if self.min_num_of_neurons < 1:
             raise ValueError(f'min_num_of_neurons value is unacceptable')
         if self.max_num_of_neurons < 1:
@@ -109,7 +114,7 @@ class GPNNComposer(Composer):
             self.optimiser_parameters = GPChainOptimiserParameters(chain_generation_function=random_cnn_chain,
                                                                    crossover_types=[CrossoverTypesEnum.subtree],
                                                                    crossover_types_dict=crossover_by_type,
-                                                                   mutation_types=[MutationTypesEnum.growth],
+                                                                   mutation_types=[MutationTypesEnum.simple],
                                                                    mutation_types_dict=mutation_by_type,
                                                                    selection_types=[SelectionTypesEnum.tournament])
         else:

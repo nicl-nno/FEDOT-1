@@ -13,7 +13,10 @@ class NNNode():
         if type == LayerTypesIdsEnum.conv2d:
             layer_name= f'{type.value}\n{self.layer_params.activation.value, self.layer_params.num_of_filters}'
             if self.layer_params.pool_size:
-                layer_name += '\n maxpool2d'
+                if self.layer_params.pool_type == LayerTypesIdsEnum.maxpool2d:
+                    layer_name += '\n maxpool2d'
+                elif self.layer_params.pool_type == LayerTypesIdsEnum.averagepool2d:
+                    layer_name += '\n averagepool2d'
         elif type == LayerTypesIdsEnum.dense:
             layer_name = f'{type.value}({self.layer_params.neurons})'
         elif type == LayerTypesIdsEnum.dropout:

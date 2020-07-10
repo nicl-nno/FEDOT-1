@@ -6,7 +6,8 @@ from nas.keras_eval import generate_structure
 
 
 def output_dimension(input_dimension: float, kernel_size: int, stride: int) -> float:
-    return ((input_dimension - kernel_size) / stride) + 1
+    output_dim = ((input_dimension - kernel_size) / stride) + 1
+    return output_dim
 
 
 def one_side_parameters_correction(input_dimension: float, kernel_size: int, stride: int) -> \
@@ -61,103 +62,105 @@ def kernel_parameters_correction(input_image_size: List[float], kernel_size: Tup
     return kernel_size, strides
 
 
-# TODO is it possible to do without it ?
-class StaticStorage:
-    current_image_size = None
-
-
 def is_image_has_permissible_size(image_size, min_size: int = 2):
-    return all([side_size > min_size for side_size in image_size])
+    return all([side_size >= min_size for side_size in image_size])
 
 
-def random_branch(secondary_node_func: Callable, primary_node_func: Callable, requirements,
-                  is_conv_branch: bool, node_parent: Any, chain: Any = None, max_depth=None, height: int = None,
-                  offspring_size: int = None, image_size: List[float] = None) -> Any:
+def random_cnn(secondary_node_func: Callable, requirements, chain: Any = None, max_num_of_conv: int = None,
+               min_num_of_conv: int = None, image_size: List[float] = None) -> Any:
+    max_num_of_conv = max_num_of_conv if not max_num_of_conv is None else requirements.max_num_of_conv_layers
+    min_num_of_conv = min_num_of_conv if not min_num_of_conv is None else requirements.max_num_of_conv_layers
+    num_of_conv = randint(min_num_of_conv, max_num_of_conv)
+    if image_size is None:
+        current_image_size = requirements.image_size
+    else:
+        current_image_size = image_size
+    for conv_num in range(num_of_conv):
+
+        node_type = choice(requirements.conv_types)
+        activation = choice(requirements.activation_types)
+        kernel_size = requirements.conv_kernel_size
+        conv_strides = requirements.conv_strides
+        num_of_filters = choice(requirements.filters)
+        pool_size = None
+        pool_strides = None
+        pool_type = None
+        if is_image_has_permissible_size(current_image_size, 2):
+            current_image_size = [output_dimension(current_image_size[i], kernel_size[i], conv_strides[i]) for i in
+                                  range(len(kernel_size))]
+
+            if is_image_has_permissible_size(current_image_size, 2):
+                current_image_size = [floor(output_dimension(current_image_size[i], requirements.pool_size[i],
+                                                             requirements.pool_strides[i])) for i in
+                                      range(len(current_image_size))]
+                if is_image_has_permissible_size(current_image_size, 2):
+                    pool_size = requirements.pool_size
+                    pool_strides = requirements.pool_strides
+                    pool_type = choice(requirements.pool_types)
+        else:
+            break
+        layer_params = LayerParams(layer_type=node_type, activation=activation,
+                                   kernel_size=kernel_size, conv_strides=conv_strides, num_of_filters=num_of_filters,
+                                   pool_size=pool_size, pool_strides=pool_strides, pool_type=pool_type)
+        new_node = secondary_node_func(layer_params=layer_params)
+        chain.add_cnn_node(new_node)
+        if pool_size is None:
+            break
+
+        if conv_num != num_of_conv - 1:
+            node_type = choice(requirements.cnn_secondary)
+            layer_params = get_random_layer_params(node_type, requirements)
+            new_node = secondary_node_func(layer_params=layer_params)
+            chain.add_cnn_node(new_node)
+        if conv_num == num_of_conv - 1:
+            add_dropout_layer = randint(0, 1)
+            if add_dropout_layer:
+                node_type = LayerTypesIdsEnum.dropout
+                layer_params = get_random_layer_params(node_type, requirements)
+                new_node = secondary_node_func(layer_params=layer_params)
+                chain.add_cnn_node(new_node)
+
+
+def random_nn_branch(secondary_node_func: Callable, primary_node_func: Callable, requirements, chain: Any = None,
+                     max_depth=None, start_height: int = None, node_parent=None) -> Any:
     max_depth = max_depth if not max_depth is None else requirements.max_depth
 
-    def branch_growth(node_parent: Any = None, offspring_size: int = None, node_parent_height: int = None):
-        offspring_size = offspring_size if not offspring_size is None else randint(requirements.min_arity,
-                                                                                   requirements.max_arity)
-        for offspring_node in range(offspring_size):
-            if node_parent_height is None:
-                height = 0
-            else:
-                height = node_parent_height + 1
-            is_max_depth_exceeded = height >= max_depth - 1
-            is_primary_node_selected = height < max_depth - 1 and randint(0, 1)
-            is_image_size_permissible = is_image_has_permissible_size(StaticStorage.current_image_size)
-            primary = is_max_depth_exceeded or is_primary_node_selected or not is_image_size_permissible
-            if primary:
-                rand_node_type = choice(requirements.cnn_primary) if is_conv_branch else choice(requirements.primary)
-            else:
-                rand_node_type = choice(requirements.cnn_secondary) if is_conv_branch else choice(
-                    requirements.secondary)
+    def branch_growth(node_parent: Any = None, offspring_size: int = None, height: int = None):
 
-            layer_params = get_random_layer_params(rand_node_type, requirements)
+        height = 0 if height is None else height
+        is_max_depth_exceeded = height >= max_depth - 1
+        is_primary_node_selected = height < max_depth - 1 and randint(0, 1)
+        primary = is_max_depth_exceeded or is_primary_node_selected
+        if primary:
+            node_type = choice(requirements.primary)
+        else:
+            node_type = choice(requirements.secondary)
+            offspring_size = offspring_size if not offspring_size is None else randint(requirements.min_arity,
+                                                                                       requirements.max_arity)
+        layer_params = get_random_layer_params(node_type, requirements)
 
-            if primary:
-                new_node = primary_node_func(layer_params=layer_params)
-            else:
-                new_node = secondary_node_func(layer_params=layer_params)
-                offspring_size = randint(requirements.min_arity, requirements.max_arity)
-                branch_growth(node_parent=new_node, offspring_size=offspring_size, node_parent_height=height)
-            if chain:
-                chain.add_node(new_node)
+        if primary:
+            new_node = primary_node_func(layer_params=layer_params)
+        else:
+            new_node = secondary_node_func(layer_params=layer_params)
+            for _ in range(offspring_size):
+                branch_growth(node_parent=new_node, height=height + 1)
+        if chain:
+            chain.add_node(new_node)
+        if node_parent:
             node_parent.nodes_from.append(new_node)
 
-    if is_conv_branch:
-        if not image_size:
-            StaticStorage.current_image_size = requirements.image_size
-        else:
-            StaticStorage.current_image_size = image_size
-    height = height if height else 0
-    branch_growth(node_parent=node_parent, offspring_size=offspring_size, node_parent_height=height)
-
-
-def create_conv_layer_using_image_size_constraint(requirements):
-    activation = choice(requirements.activation_types)
-    kernel_size = requirements.conv_kernel_size
-    conv_strides = requirements.conv_strides
-    pool_size = requirements.pool_kernel_size
-    pool_strides = requirements.pool_strides
-    num_of_filters = choice(requirements.filters)
-    if is_image_has_permissible_size(StaticStorage.current_image_size, 2):
-
-        StaticStorage.current_image_size = [
-            output_dimension(StaticStorage.current_image_size[i], kernel_size[i], conv_strides[i]) for i
-            in
-            range(len(StaticStorage.current_image_size))]
-
-        if is_image_has_permissible_size(StaticStorage.current_image_size, 2):
-
-            StaticStorage.current_image_size = [
-                floor(output_dimension(StaticStorage.current_image_size[i], pool_size[i], pool_strides[i])) for
-                i in range(len(StaticStorage.current_image_size))]
-        else:
-            pool_size, pool_strides = None, None
-    else:
-        kernel_size, conv_strides = (1, 1), (1, 1)
-        pool_size, pool_strides = None, None
-
-    layer_params = LayerParams(layer_type=LayerTypesIdsEnum.conv2d, activation=activation,
-                               kernel_size=kernel_size, conv_strides=conv_strides,
-                               pool_size=pool_size, pool_strides=pool_strides, num_of_filters=num_of_filters)
-    return layer_params
+    node_parent = node_parent if node_parent else None
+    branch_growth(height=start_height, node_parent=node_parent)
 
 
 def random_cnn_chain(chain_class: Any, secondary_node_func: Callable, primary_node_func: Callable, requirements) -> Any:
     chain = chain_class()
-    layer_params = LayerParams(layer_type=LayerTypesIdsEnum.flatten)
-    chain_root = secondary_node_func(layer_params=layer_params)
-    chain.add_node(chain_root)
-    height = 0
-    offspring_size = 1
-    # left (cnn part) and Right (fully connected nn) branches of tree generation
-    for is_conv_branch in (True, False):
-        random_branch(chain=chain, secondary_node_func=secondary_node_func, primary_node_func=primary_node_func,
-                      requirements=requirements, is_conv_branch=is_conv_branch, height=height,
-                      node_parent=chain.root_node, offspring_size=offspring_size)
-    chain.sort_nodes()
+    # left (cnn part) branch of tree generation
+    random_cnn(chain=chain, secondary_node_func=secondary_node_func, requirements=requirements)
+    # Right (fully connected nn) branch of tree generation
+    random_nn_branch(chain=chain, secondary_node_func=secondary_node_func, primary_node_func=primary_node_func,
+                     requirements=requirements, start_height=0)
     return chain
 
 
@@ -168,13 +171,10 @@ def get_random_layer_params(type, requirements) -> LayerParams:
     elif type == LayerTypesIdsEnum.dropout:
         drop = randint(1, (requirements.max_drop_size * 10)) / 10
         layer_params = LayerParams(layer_type=type, drop=drop)
-    elif type == LayerTypesIdsEnum.dense or type == LayerTypesIdsEnum.conv2d:
-        if type == LayerTypesIdsEnum.dense:
-            activation = choice(requirements.activation_types)
-            neurons = randint(requirements.min_num_of_neurons, requirements.max_num_of_neurons)
-            layer_params = LayerParams(layer_type=type, neurons=neurons, activation=activation)
-        elif type == LayerTypesIdsEnum.conv2d:
-            layer_params = create_conv_layer_using_image_size_constraint(requirements)
+    if type == LayerTypesIdsEnum.dense:
+        activation = choice(requirements.activation_types)
+        neurons = randint(requirements.min_num_of_neurons, requirements.max_num_of_neurons)
+        layer_params = LayerParams(layer_type=type, neurons=neurons, activation=activation)
     return layer_params
 
 

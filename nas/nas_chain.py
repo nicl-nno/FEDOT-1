@@ -1,15 +1,33 @@
 from core.composer.chain import Chain
 from core.models.data import InputData
+from nas.nn_node import NNNode
 from nas.keras_eval import create_nn_model, keras_model_fit, keras_model_predict
+from keras import backend as K
+import tensorflow as tf
 
 
 class NASChain(Chain):
-    def __init__(self, nodes=None, fitted_model=None):
+    def __init__(self, nodes=None, cnn_nodes=None, fitted_model=None):
         super().__init__(nodes)
+        self.cnn_nodes = cnn_nodes if not cnn_nodes is None else []
         self.model = fitted_model
 
     def __eq__(self, other) -> bool:
         return self is other
+
+    def add_cnn_node(self, new_node: NNNode):
+        """
+        Append new node to chain list
+
+        """
+        self.cnn_nodes.append(new_node)
+
+    def update_cnn_node(self, old_node: NNNode, new_node: NNNode):
+        index = self.cnn_nodes.index(old_node)
+        self.cnn_nodes[index] = new_node
+
+    def replace_cnn_nodes(self, new_nodes):
+        self.cnn_nodes = new_nodes
 
     def fit(self, input_data: InputData, verbose=False, input_shape: tuple = None,
             min_filters: int = None, max_filters: int = None, classes: int = 2, batch_size=24, epochs=15):
