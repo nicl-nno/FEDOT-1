@@ -75,7 +75,7 @@ def run_fedot(params: 'ExecutionParams'):
             primary=available_model_types,
             secondary=available_model_types, max_arity=3,
             max_depth=3, pop_size=population_size, num_of_generations=generations,
-            crossover_prob=0.8, mutation_prob=0.8, max_lead_time=datetime.timedelta(minutes=cur_lead_time))
+            crossover_prob=0.8, mutation_prob=0.8, max_lead_time=datetime.timedelta(minutes=cur_lead_time / 2))
 
         # Create GP-based composer
         composer = GPComposer()
@@ -85,7 +85,9 @@ def run_fedot(params: 'ExecutionParams'):
                                                     initial_chain=None,
                                                     composer_requirements=composer_requirements,
                                                     metrics=metric_function, is_visualise=False)
-        chain_evo_composed.fine_tune_primary_nodes(input_data=dataset_to_compose, iterations=50)
+        chain_evo_composed.fine_tune_all_nodes(input_data=dataset_to_compose,
+                                               iterations=10000,
+                                               max_lead_time=datetime.timedelta(minutes=cur_lead_time))
         chain_evo_composed.fit(input_data=dataset_to_compose, verbose=False)
         save_fedot_model(chain_evo_composed, saved_model_name)
     else:

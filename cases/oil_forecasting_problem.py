@@ -1,4 +1,5 @@
 import os
+from copy import copy
 
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error as mse
@@ -30,7 +31,7 @@ def calculate_validation_metric(pred: OutputData, valid: InputData,
     forecast_length = valid.task.task_params.forecast_length
 
     # skip initial part of time series
-    predicted = pred.predict
+    predicted = pred.predict[:, pred.predict.shape[1] - 1]
     real = valid.target[len(valid.target) - len(predicted):]
 
     # plot results
@@ -52,13 +53,13 @@ def compare_plot(predicted, real, forecast_length, model_name):
     plt.plot(predicted, linewidth=1, label="Predicted", alpha=0.6)
     ax.legend()
     plt.xlabel('Time, h')
-    plt.ylabel('SSH, cm')
-    plt.title(f'Sea surface height forecast for {forecast_length} hours with {model_name}')
+    plt.ylabel('Oil volume')
+    plt.title(f'BORE_OIL_VOL for {forecast_length} hours with {model_name}')
     plt.show()
 
 
 def run_metocean_forecasting_problem(train_file_path, test_file_path,
-                                     forecast_length=1, max_window_size=64,
+                                     forecast_length=50, max_window_size=10,
                                      is_visualise=False):
     # specify the task to solve
     task_to_solve = Task(TaskTypesEnum.ts_forecasting,
@@ -67,58 +68,51 @@ def run_metocean_forecasting_problem(train_file_path, test_file_path,
 
     full_path_train = os.path.join(str(project_root()), train_file_path)
     dataset_to_train = InputData.from_csv(
-        full_path_train, task=task_to_solve, data_type=DataTypesEnum.ts)
+        full_path_train, task=task_to_solve, data_type=DataTypesEnum.ts,
+        delimiter=';')
 
     # a dataset for a final validation of the composed model
     full_path_test = os.path.join(str(project_root()), test_file_path)
     dataset_to_validate = InputData.from_csv(
-        full_path_test, task=task_to_solve, data_type=DataTypesEnum.ts)
+        full_path_test, task=task_to_solve, data_type=DataTypesEnum.ts,
+        delimiter=';')
 
-    chain = get_composite_lstm_chain()
+    for forecasting_step in range(4):
+        start = 400 + 100 * forecasting_step
+        end = 400 + 100 * (forecasting_step + 1)
+        dataset_to_train_local = copy(dataset_to_train)
+        dataset_to_train_local.idx = dataset_to_train_local.idx[start:end]
 
-    chain_simple = Chain()
-    node_single = PrimaryNode('ridge')
-    chain_simple.add_node(node_single)
+        dataset_to_train_local.target = dataset_to_train_local.target[start:end]
+        dataset_to_train_local.features = dataset_to_train_local.features[start:end, :]
 
-    chain_lstm = Chain()
-    node_lstm = PrimaryNode('lstm')
-    chain_lstm.add_node(node_lstm)
+        chain_simple = Chain()
+        node_single = PrimaryNode('ridge')
+        chain_simple.add_node(node_single)
 
-    chain.fit(input_data=dataset_to_train, verbose=False)
-    rmse_on_valid = calculate_validation_metric(
-        chain.predict(dataset_to_validate), dataset_to_validate,
-        f'full-composite_{forecast_length}',
-        is_visualise)
+        chain_simple.fit(input_data=dataset_to_train_local, verbose=False)
+        prediction = chain_simple.predict(dataset_to_validate)
 
-    chain_lstm.fit(input_data=dataset_to_train, verbose=False)
-    rmse_on_valid_lstm_only = calculate_validation_metric(
-        chain_lstm.predict(dataset_to_validate), dataset_to_validate,
-        f'full-lstm-only_{forecast_length}',
-        is_visualise)
-
-    chain_simple.fit(input_data=dataset_to_train, verbose=False)
     rmse_on_valid_simple = calculate_validation_metric(
-        chain_simple.predict(dataset_to_validate), dataset_to_validate,
+        prediction, dataset_to_validate,
         f'full-simple_{forecast_length}',
         is_visualise)
 
-    print(f'RMSE composite: {rmse_on_valid}')
     print(f'RMSE simple: {rmse_on_valid_simple}')
-    print(f'RMSE LSTM only: {rmse_on_valid_lstm_only}')
 
     return rmse_on_valid_simple
 
 
 if __name__ == '__main__':
-    # the dataset was obtained from NEMO model simulation for sea surface height
+    # the dataset was obtained from Volve dataset of oil field
 
     # a dataset that will be used as a train and test set during composition
-    file_path_train = 'cases/data/metocean/metocean_data_train.csv'
+    file_path_train = 'cases/data/oil/volve_train.csv'
     full_path_train = os.path.join(str(project_root()), file_path_train)
 
     # a dataset for a final validation of the composed model
-    file_path_test = 'cases/data/metocean/metocean_data_test.csv'
+    file_path_test = 'cases/data/oil/volve_test.csv'
     full_path_test = os.path.join(str(project_root()), file_path_test)
 
     run_metocean_forecasting_problem(full_path_train, full_path_test,
-                                     forecast_length=1, is_visualise=True)
+                                     forecast_length=90, is_visualise=True)
