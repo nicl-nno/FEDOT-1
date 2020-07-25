@@ -57,17 +57,18 @@ class GPChainOptimiser:
         if not all([hasattr(self.chain_class, attr) for attr in necessary_attrs]):
             raise AttributeError(f'Object chain_class has no required attributes for gp_optimizer')
 
+        if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free:
+            self.requirements.pop_size = 1
+            self.current_fibonacci_num = 2
+
         if initial_chain and type(initial_chain) != list:
-            self.population = [deepcopy(initial_chain) for _ in range(requirements.pop_size)]
+            self.population = [deepcopy(initial_chain) for _ in range(self.requirements.pop_size)]
         else:
             self.population = initial_chain or self._make_population(self.requirements.pop_size)
 
     def optimise(self, objective_function, offspring_rate=0.5):
 
-        if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.steady_state:
-            num_of_new_individuals = math.ceil(self.requirements.pop_size * offspring_rate)
-        else:
-            num_of_new_individuals = self.requirements.pop_size - 1
+        num_of_new_individuals = self.offspring_size(offspring_rate)
 
         with CompositionTimer() as t:
 
@@ -86,30 +87,62 @@ class GPChainOptimiser:
             for generation_num in range(self.requirements.num_of_generations - 1):
                 print(f'Generation num: {generation_num}')
 
+                if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free and generation_num == 0:
+                    self.requirements.mutation_prob = 1
+                    self.max_std = 0
+                    self.current_std = 0
+                    self.requirements.crossover_prob = 0
+
                 individuals_to_select = regularized_population(reg_type=self.parameters.regularization_type,
                                                                population=self.population,
                                                                objective_function=objective_function,
                                                                chain_class=self.chain_class)
 
-                num_of_parents = num_of_new_individuals if not num_of_new_individuals % 2 else num_of_new_individuals + 1
-                selected_individuals = selection(types=self.parameters.selection_types,
-                                                 population=individuals_to_select,
-                                                 pop_size=num_of_parents)
+                if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free and \
+                        num_of_new_individuals == 1 and len(self.population) == 1:
+                    new_population = [self.reproduce(self.population[0])[0]]
+                    new_population[0].fitness = objective_function(new_population[0])
+                else:
+                    num_of_parents = num_of_new_individuals if not num_of_new_individuals % 2 else \
+                        num_of_new_individuals + 1
 
-                new_population = []
+                    selected_individuals = selection(types=self.parameters.selection_types,
+                                                     population=individuals_to_select,
+                                                     pop_size=num_of_parents)
 
-                for parent_num in range(0, len(selected_individuals), 2):
-                    new_population += self.reproduce(selected_individuals[parent_num],
-                                                     selected_individuals[parent_num + 1])
+                    new_population = []
 
-                    new_population[parent_num].fitness = objective_function(new_population[parent_num])
-                    new_population[parent_num + 1].fitness = objective_function(new_population[parent_num + 1])
+                    for parent_num in range(0, len(selected_individuals), 2):
+                        new_population += self.reproduce(selected_individuals[parent_num],
+                                                         selected_individuals[parent_num + 1])
 
+                        new_population[parent_num].fitness = objective_function(new_population[parent_num])
+                        new_population[parent_num + 1].fitness = objective_function(new_population[parent_num + 1])
+                if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free:
+                    self.requirements.pop_size = self.next_population_size(new_population)
+                    num_of_new_individuals = self.offspring_size(offspring_rate)
+
+                self.prev_best = deepcopy(self.best_individual)
+
+                allowable_pop_size_in_others = self.requirements.pop_size > 1 and not \
+                    self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free
+                allowable_pop_size_in_parameter_free = self.requirements.pop_size > 10 \
+                                                       and self.parameters.genetic_scheme_type == \
+                                                       GeneticSchemeTypesEnum.parameter_free
+                elitism = allowable_pop_size_in_others or allowable_pop_size_in_parameter_free
+                num_of_inds_in_next_pop = self.requirements.pop_size - 1 if elitism else self.requirements.pop_size
                 self.population = inheritance(self.parameters.genetic_scheme_type, self.parameters.selection_types,
                                               self.population,
-                                              new_population, self.requirements.pop_size - 1)
+                                              new_population, num_of_inds_in_next_pop)
 
-                self.population.append(self.best_individual)
+                if elitism:
+                    self.population.append(self.prev_best)
+
+                if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free:
+                    all_fitness = [ind.fitness for ind in self.population]
+                    self.current_std = np.std(all_fitness)
+                    if self.max_std < self.current_std:
+                        self.max_std = self.current_std
 
                 self._add_to_history(self.population)
 
@@ -118,6 +151,10 @@ class GPChainOptimiser:
 
                 if t.is_time_limit_reached(self.requirements.max_lead_time, generation_num):
                     break
+
+                if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free:
+                    self.requirements.num_of_generations = generation_num + 2
+
             best = self.best_individual
             if self.requirements.add_single_model_chains and \
                     (best_single_model.fitness <= best.fitness):
@@ -126,12 +163,15 @@ class GPChainOptimiser:
 
     @property
     def best_individual(self) -> Any:
-        best_ind = min(self.population, key=lambda ind: ind.fitness)
+        return self.get_best_individual(self.population)
+
+    def get_best_individual(self, individuals) -> Any:
+        best_ind = min(individuals, key=lambda ind: ind.fitness)
         equivalents = self.simpler_equivalents_of_best_ind(best_ind)
 
         if equivalents:
             best_candidate_id = min(equivalents, key=equivalents.get)
-            best_ind = self.population[best_candidate_id]
+            best_ind = individuals[best_candidate_id]
         return best_ind
 
     def simpler_equivalents_of_best_ind(self, best_ind: Any) -> dict:
@@ -144,12 +184,15 @@ class GPChainOptimiser:
                 simpler_equivalents[i] = len(self.population[i].nodes)
         return simpler_equivalents
 
-    def reproduce(self, selected_individual_first, selected_individual_second) -> Tuple[Any]:
-        new_inds = crossover(self.parameters.crossover_types,
-                             selected_individual_first,
-                             selected_individual_second,
-                             crossover_prob=self.requirements.crossover_prob,
-                             max_depth=self.requirements.max_depth)
+    def reproduce(self, selected_individual_first, selected_individual_second=None) -> Tuple[Any]:
+        if selected_individual_second:
+            new_inds = crossover(self.parameters.crossover_types,
+                                 selected_individual_first,
+                                 selected_individual_second,
+                                 crossover_prob=self.requirements.crossover_prob,
+                                 max_depth=self.requirements.max_depth)
+        else:
+            new_inds = [selected_individual_first]
 
         new_inds = tuple([mutation(types=self.parameters.mutation_types,
                                    chain_class=self.chain_class,
@@ -179,3 +222,34 @@ class GPChainOptimiser:
             single_models_inds.append(single_models_ind)
         best_inds = sorted(single_models_inds, key=lambda ind: ind.fitness)
         return best_inds[0], [i.nodes[0].model.model_type for i in best_inds][:num_best]
+
+    def offspring_size(self, offspring_rate: float = None):
+        default_offspring_rate = 0.5 if not offspring_rate else offspring_rate
+        if self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.steady_state:
+            num_of_new_individuals = math.ceil(self.requirements.pop_size * default_offspring_rate)
+        elif self.parameters.genetic_scheme_type == GeneticSchemeTypesEnum.parameter_free:
+            num_of_new_individuals = self.fibonacci(self.current_fibonacci_num - 1)
+        else:
+            num_of_new_individuals = self.requirements.pop_size - 1
+        return num_of_new_individuals
+
+    def next_population_size(self, offspring):
+        best_in_offspring = self.get_best_individual(offspring)
+        fitness_improved = best_in_offspring.fitness < self.best_individual.fitness
+        complexity_decreased = len(best_in_offspring.nodes) < len(self.best_individual.nodes)
+        progress_in_both_goals = fitness_improved and complexity_decreased
+        no_progress = not fitness_improved and not complexity_decreased
+        if (progress_in_both_goals and len(self.population) > 2) or no_progress:
+            if progress_in_both_goals:
+                self.current_fibonacci_num = self.current_fibonacci_num - 1
+            else:
+                self.current_fibonacci_num = self.current_fibonacci_num + 1
+                self.requirements.mutation_prob = 1 - (self.current_std / self.max_std) if self.max_std > 0 else 0.5
+                self.requirements.crossover_prob = 1 - self.requirements.mutation_prob
+            next_population_size = self.fibonacci(self.current_fibonacci_num)
+        else:
+            next_population_size = len(self.population)
+        return next_population_size
+
+    def fibonacci(self, n):
+        return n if n < 2 else self.fibonacci(n - 1) + self.fibonacci(n - 2)
